@@ -16,7 +16,7 @@ nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 .m.b{background:var(--sf);border:1px solid var(--bd);align-self:flex-start}
 .m.u{background:var(--ac);color:#fff;align-self:flex-end}
 #bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--bd)}
-input,select{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:9px;min-width:0}
+input,select,textarea{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:9px;min-width:0}
 #bar input{flex:1}
 .btn{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:inherit}
 .btn.o{background:none;color:var(--ac);border:1px solid var(--ac)}
@@ -51,6 +51,7 @@ const $=s=>document.querySelector(s);
 const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const num=s=>parseFloat(String(s).replace(",","."));
 const fmt=n=>Math.round(n).toLocaleString("es-ES");
+const f2=n=>(Math.round(n*100)/100).toLocaleString("es-ES",{maximumFractionDigits:2});
 const f1=n=>(Math.round(n*10)/10).toLocaleString("es-ES");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const today=()=>new Date().toLocaleDateString("sv");
@@ -76,7 +77,7 @@ async function load(){
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
  D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));
- const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.04);D.goal=p.goal_kcal!=null?+p.goal_kcal:null}
+ const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
 const palabras=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w&&!STOP.has(w));
@@ -84,7 +85,7 @@ function findFood(n){const w=palabras(n);let b=null,bs=0;for(const name in D.foo
 function findAct(n){for(const a in D.acts)for(const m of D.acts[a].m)if(new RegExp("(^|[^a-z])"+m).test(n))return a;return null}
 function cut(t,re){const m=re.exec(norm(t));if(!m)return[null,t];return[m,t.slice(0,m.index)+" "+t.slice(m.index+m[0].length)]}
 const QW={un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,medio:.5,media:.5};
-const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece".split(" "));
+const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece que creo eran era tengo aproximadamente otro otra otros otras mas menos copa copas cana canas cucharada cucharadas cucharadita cucharaditas porcion porciones trozo trozos".split(" "));
 function parseFood(raw){
  let t=raw.toLowerCase(),per,kc,gr;
  [per,t]=cut(t,/(por|cada|\/)\s*100\s*(g|gr|gramos|ml)\b/);
@@ -115,7 +116,7 @@ async function saveFood(f,name,src){
  if(f.id)await sb.from("foods").update(r).eq("id",f.id);
  else{const{data}=await sb.from("foods").insert({...r,user_id:uid}).select().single();if(data)f.id=data.id}}
 const lastW=()=>D.weights.length?D.weights[D.weights.length-1].w:0;
-function bmr(){const p=D.prof,w=lastW();if(!w||!p.h||!p.a)return 0;return 10*w+6.25*num(p.h)-5*num(p.a)+(p.s==="m"?5:-161)}
+function bmr(){if(D.basal)return D.basal;const p=D.prof,w=lastW();if(!w||!p.h||!p.a)return 0;return 10*w+6.25*num(p.h)-5*num(p.a)+(p.s==="m"?5:-161)}
 function day(d){let i=0,a=0;D.log.forEach(e=>{if(e.d===d){if(e.t==="food")i+=e.kcal;else a+=e.kcal}});const b=bmr();return{i,a,b,out:b+a,bal:i-b-a}}
 async function add(t,txt,kcal,steps,dia){
  const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;
@@ -124,7 +125,7 @@ async function add(t,txt,kcal,steps,dia){
 async function addW(kg,dia){
  const d=dia||today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
  D.weights=D.weights.filter(x=>x.d!==d);D.weights.push({d,w:kg});D.weights.sort((a,b)=>a.d<b.d?-1:1)}
-const SPLIT=/\s*(?:,(?!\d)|;|\sy\s|\+)\s*/;
+const SPLIT=/\s*(?:,(?!\d)|;|\sy\s|\+|\scon\s+(?=(?:(?:otros?|otras?|unos?|unas?)\s+)?\d))\s*/;
 const DELV=/\b(quita|quitame|quitar|quitalo|elimina|eliminar|eliminalo|borra|borrame|borrar|borralo|anula|anular|cancela|cancelar|deshaz|deshacer)\b/;
 const DSTOP=new Set("el la los las lo de del que he hemos puesto comido comi tome bebi por favor mi me un una ultimo ultima registro registrado entrada y".split(" "));
 async function quitar(n,dia){
@@ -157,7 +158,7 @@ function fecha(t){
  [m,r]=cut(t,/\b(anteayer|antes de ayer)\b/);if(m)return[rel(2),r];
  [m,r]=cut(t,/\b(ayer|anoche)\b/);if(m)return[rel(1),r];
  [m,r]=cut(t,/\bhace (\d{1,2}) dias?\b/);if(m)return[rel(+m[1]),r];
- [m,r]=cut(t,/\b(?:el )?(?:dia )?(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?: de (\d{4}))?\b/);
+ [m,r]=cut(t,/\b(?:el )?(?:dia )?(\d{1,2})(?: de)? (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?: de (\d{4}))?\b/);
  if(m)return[explicita(+m[1],MESES.indexOf(m[2]),m[3]?+m[3]:null),r];
  [m,r]=cut(t,/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
  if(m)return[explicita(+m[1],+m[2]-1,m[3]?(+m[3]<100?2000+ +m[3]:+m[3]):null),r];
@@ -166,23 +167,57 @@ function fecha(t){
  [m,r]=cut(t,/\b(?:el )?(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/);
  if(m){let k=(h0.getDay()-DSEM.indexOf(m[1])+7)%7;if(k===0)k=7;return[rel(k),r]}
  return[null,t]}
-function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),meta=D.goal||(d.b?d.out:0);
- if(!meta)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Datos para calcular cuántas te quedan.";
- const q=meta-d.i;
- return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+(D.goal?"tu objetivo de "+fmt(D.goal):"mantenimiento ("+fmt(meta)+")")+"."}
-async function setGoal(g){D.goal=g;await sb.from("profiles").upsert({user_id:uid,goal_kcal:g})}
+let ULT=null;
+function metaDia(d){if(D.def!=null)return{l:d.out-D.def,t:"tu objetivo de déficit de "+fmt(D.def)};if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
+function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
+ if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Datos para calcular cuántas te quedan.";
+ const q=m.l-d.i;
+ return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."}
+async function setCol(col,key,v){D[key]=v;await sb.from("profiles").upsert({user_id:uid,[col]:v})}
+const setGoal=g=>setCol("goal_kcal","goal",g);
+function rep(t,re,fn){let m;while((m=re.exec(norm(t)))){t=t.slice(0,m.index)+fn(m)+t.slice(m.index+m[0].length)}return t}
+const UN={cero:0,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,cien:100,ciento:100,doscientos:200,trescientos:300,cuatrocientos:400,quinientos:500,seiscientos:600,setecientos:700,ochocientos:800,novecientos:900};
+const U1={uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9};
+function pal2num(t){
+ t=rep(t,/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa) y (uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/,m=>UN[m[1]]+U1[m[2]]);
+ t=rep(t,new RegExp("\\b("+Object.keys(UN).join("|")+")\\b"),m=>UN[m[1]]);
+ return rep(t,/\b([1-9]00) (\d{1,2})\b/,m=>+m[1]+ +m[2])}
+function evolPeso(){const w=D.weights.slice(-7);if(!w.length)return"Aún no hay pesos registrados.";
+ const dl=(a,b)=>(a-b>=0?"+":"−")+f2(Math.abs(a-b))+" kg",A=D.weights.slice(-14),u=w[w.length-1],mx=A.reduce((a,b)=>b.w>=a.w?b:a),mn=A.reduce((a,b)=>b.w<=a.w?b:a),pv=D.weights.length>1?D.weights[D.weights.length-2]:null;
+ const L=["Evolución del peso:"].concat(w.map(x=>new Date(x.d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"numeric"})+": "+f2(x.w)+" kg"));
+ L.push("Último: "+f2(u.w)+" kg"+(pv?" · frente al registro anterior "+dl(u.w,pv.w):"")+" · desde el máximo reciente ("+f2(mx.w)+") "+dl(u.w,mx.w)+" · sobre el mínimo reciente ("+f2(mn.w)+") "+dl(u.w,mn.w)+".");
+ if(D.wgoal)L.push("Objetivo "+f2(D.wgoal)+" kg: te faltan "+f2(Math.max(u.w-D.wgoal,0))+" kg.");
+ return L.join("\n")}
+function semana(off){const h=new Date();h.setHours(12,0,0,0);const ini=new Date(h);ini.setDate(h.getDate()-h.getDay()-7*off);
+ let acc=0,nd=0;const L=[];
+ for(let k=0;k<7;k++){const d=new Date(ini);d.setDate(ini.getDate()+k);const dd=iso(d);if(dd>today())break;const r=day(dd);
+  if(r.i>0){acc+=r.i-r.out;nd++}
+  L.push(d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric"})+": "+(r.i>0?fmt(r.i)+" ingeridas · gasto "+fmt(r.out)+" · balance "+(r.bal>0?"+":"")+fmt(r.bal):"sin registro"))}
+ return{L,acc,nd,ini:iso(ini)}}
+function resSemana(off){const a=semana(off),o=semana(off+1),obj=D.defw!=null?D.defw:(D.def!=null?D.def*7:null);
+ return["Semana desde "+a.ini.slice(5)+":"].concat(a.L,["Acumulado: "+(a.acc>0?"+":"")+fmt(a.acc)+" kcal en "+a.nd+" días"+(obj!=null?" (objetivo semanal: −"+fmt(obj)+")":"")+".","Semana anterior: "+(o.acc>0?"+":"")+fmt(o.acc)+" kcal."]).join("\n")}
+function nota(){const P=periodo(PER),a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);
+ let t="Seguimiento de peso y calorías\nPeriodo: "+a+" a "+today()+"\n\nObjetivos\n"+(D.wgoal?"- Peso objetivo: "+f2(D.wgoal)+" kg\n":"")+(D.def!=null?"- Déficit diario: "+fmt(D.def)+" kcal\n":"")+(D.defw!=null?"- Déficit semanal: "+fmt(D.defw)+" kcal\n":"")+(D.goal?"- Ingesta objetivo: "+fmt(D.goal)+" kcal\n":"");
+ t+="\nEvolución del peso\n"+(w.map(x=>x.d+": "+f2(x.w)+" kg").join("\n")||"sin registros")+"\n\nBalance por día (ingesta / gasto / balance)\n";
+ for(let k=PER-1;k>=0;k--){const dd=daysAgo(k),r=day(dd);if(r.i>0)t+=dd+": "+fmt(r.i)+" / "+fmt(r.out)+" / "+(r.bal>0?"+":"")+fmt(r.bal)+"\n"}
+ return t+"\nAcumulado del periodo: "+(P.def>0?"déficit ":"superávit ")+fmt(Math.abs(P.def))+" kcal en "+P.nc+" días\n"}
+async function copiar(){const t=nota();$("#nota").value=t;try{await navigator.clipboard.writeText(t);$("#notamsg").textContent="Copiado."}catch(e){$("#notamsg").textContent="Selecciona el texto y cópialo."}}
+async function importarPesos(){let n=0;
+ for(const l of $("#imp").value.split("\n")){const[fd,r]=fecha(pal2num(l)),m=r.match(/(\d{2,3})(?:[.,](\d{1,2}))?\s*(kg)?\s*\|?\s*$/);if(fd&&m){await addW(+(m[1]+"."+(m[2]||0)),fd);n++}}
+ $("#impres").textContent=n+" pesos importados."}
 async function consulta(s){
- const ns=norm(s),mi=ns.search(/\b(pero|para saber|quiero que|dime|cuantas)\b/),q=mi>0?s.slice(0,mi):s;
- const[fd,q2]=fecha(q),dia=fd||today(),bak=JSON.stringify(D.foods);let tot=0;const L=[];
- for(const it of q2.split(/\s*(?:,|;|\scon\s|\sy\s|\+)\s*/).filter(x=>x.trim())){
+ const[fd,q2]=fecha(s),dia=fd||today(),bak=JSON.stringify(D.foods);let tot=0;const L=["Previsto:"],it2=[];
+ for(const it of q2.split(/\s*(?:[,;?!]|\.(?!\d)|\scon\s|\sy\s|\+)\s*/).filter(x=>x.trim())){
   if(!palabras(it).length)continue;
   const r=parseFood(it);
-  if(r.err||r.unknown){L.push("No conozco «"+(r.name||it.trim())+"». Dime sus calorías, por ejemplo: «"+(r.name||"alimento")+" 120 kcal».");continue}
-  tot+=r.kcal;L.push(r.desc+" → "+fmt(r.kcal)+" kcal")}
- D.foods=JSON.parse(bak);
- const d=day(dia),meta=D.goal||(d.b?d.out:0);
- L.push("Total: "+fmt(tot)+" kcal (no se ha guardado).");
- L.push(meta?"Llevas "+fmt(d.i)+" de "+fmt(meta)+"; con esto serían "+fmt(d.i+tot)+" y "+(meta-d.i-tot>=0?"te quedarían "+fmt(meta-d.i-tot):"te pasarías en "+fmt(d.i+tot-meta))+" kcal.":"Completa tu perfil en Datos para saber si encaja en el día.");
+  if(r.err||r.unknown){if(palabras(it).length<=2)L.push("No conozco «"+(r.name||it.trim())+"». Dime sus calorías, por ejemplo: «"+(r.name||"alimento")+" 120 kcal».");continue}
+  tot+=r.kcal;it2.push(r);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
+ D.foods=JSON.parse(bak);ULT=it2.length?{items:it2,dia}:null;
+ L.push("Total: "+fmt(tot)+" kcal (no guardado; di «añade eso» para registrarlo).");
+ const d=day(dia),m=metaDia(d),pr=d.i+tot-d.out;
+ if(d.out)L.push("Previsión: llevas "+fmt(d.i)+" + esto "+fmt(tot)+" = "+fmt(d.i+tot)+" kcal. Gasto estimado "+fmt(d.out)+" → balance previsto "+(pr>0?"+":"")+fmt(pr)+(D.def!=null?" (objetivo −"+fmt(D.def)+")":"")+".");
+ if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+fmt(m.l-d.i-tot):"Te pasarías en "+fmt(d.i+tot-m.l))+" kcal para "+m.t+".");
+ else L.push("Completa tu perfil en Datos para saber si encaja en el día.");
  return L}
 function periodo(n){const r={i:0,b:0,p:0,o:0,def:0,nc:0};
  for(let k=0;k<n;k++){const dd=daysAgo(k),E=D.log.filter(e=>e.d===dd);if(!E.length)continue;
@@ -192,16 +227,26 @@ function periodo(n){const r={i:0,b:0,p:0,o:0,def:0,nc:0};
 let OPTS=null;
 async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});return error?[]:(data||[]).filter(x=>x.kcal_100g!=null)}
 async function handle(text){
- OPTS=null;const s=text.replace(/hora y media/gi,"1,5 horas"),out=[];
+ OPTS=null;const s=pal2num(text).replace(/hora y media/gi,"1,5 horas"),out=[];
  const n0=norm(s);
- if(/\b(objetivo|meta)\b/.test(n0)){const gm=n0.match(/(\d{3,4})/);
-  if(gm){await setGoal(+gm[1]);return["Objetivo diario: "+fmt(+gm[1])+" kcal.\n"+resumen(today())]}
-  if(DELV.test(n0)){await setGoal(null);return["Objetivo quitado: vuelvo a mantenimiento.\n"+resumen(today())]}}
+ if(ULT&&/\b(anade|apunta|registra|anota|guarda|agrega)\b.*\b(eso|esto|todo|lo anterior)\b/.test(n0)){
+  const U=ULT;ULT=null;const L=["Registrado:"];
+  for(const r of U.items){if(r.save){D.foods[r.name]=r.f;await saveFood(r.f,r.name)}await add("food",r.desc,r.kcal,null,U.dia);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
+  const k=n0.search(/\s(y|ademas)\s/),rest=k>0?s.slice(k).replace(/^\s*(y|ademas)\s+/i,""):"";
+  if(rest.trim())return L.concat(await handle(rest));
+  return L.concat([resumen(U.dia)])}
+ if(/(acumulado|resumen|balance).*semana|semana.*(acumulado|balance)/.test(n0))return[resSemana(/(pasada|anterior)/.test(n0)?1:0)];
+ if(/(evolucion.*peso|peso.*evolucion|como (voy|va).*peso)/.test(n0)&&!/(pese|pesaba|he pesado)/.test(n0))return[evolPeso()];
+ if(/(nota|resumen).*(copiar|copia)|copiar.*(nota|resumen)/.test(n0))return[nota()];
+ if(/\b(objetivo|meta)\b/.test(n0)){const gm=n0.match(/(\d{1,4}(?:[.,]\d+)?)/),v=gm?num(gm[1]):null;
+  const k=/peso/.test(n0)?["weight_goal","wgoal","Peso objetivo"]:/semana/.test(n0)?["deficit_week_kcal","defw","Déficit semanal"]:/deficit/.test(n0)?["deficit_kcal","def","Déficit diario"]:["goal_kcal","goal","Objetivo de ingesta"];
+  if(v!=null&&!DELV.test(n0)){await setCol(k[0],k[1],v);return[k[2]+": "+f2(v)+(k[1]==="wgoal"?" kg":" kcal")+".\n"+resumen(today())]}
+  if(DELV.test(n0)){for(const c of (/peso|semana|deficit/.test(n0)?[k]:[["goal_kcal","goal"],["deficit_kcal","def"]]))await setCol(c[0],c[1],null);return["Quitado. Vuelvo a mantenimiento si no queda otro objetivo.\n"+resumen(today())]}}
  if(/(cuantas|que) (calorias|kcal).*(llevo|quedan|he comido|he consumido)/.test(n0))return[resumen(fecha(n0)[0]||today())];
- if(/(estoy pensando|pensando en|voy a comer|podria comer|puedo comer|me apetece|cuantas (calorias|kcal)|encaja)/.test(n0))return await consulta(s);
+ if(/(estoy pensando|pensando en|voy a (comer|cenar|tomar|desayunar|almorzar)|podria (comer|cenar|tomar)|puedo (comer|cenar|tomar)|me apetece|me gustaria (tomar|comer|cenar)|todavia no|no lo he|cuanto (seria|serian|son|suponen|tiene|tienen)|cuantas (calorias|kcal)|encaja|organizar|planificar)/.test(n0))return await consulta(s);
  if(DELV.test(norm(s))){const[dq,sq]=fecha(norm(s));return[await quitar(sq,dq||today())]}
- const[wd,sw]=fecha(s),wm=norm(sw).match(/(he pesado|pese|peso|mi peso)\s*(?:de|es|:)?\s*(\d{2,3}(?:[.,]\d+)?)/);
- if(wm){await addW(num(wm[2]),wd||today());return["Peso registrado: "+f1(num(wm[2]))+" kg"+(wd&&wd!==today()?" ("+wd+")":"")+"."]}
+ const[wd,sw]=fecha(s),wm=norm(sw).match(/(he pesado|pese|peso|mi peso|pesaba|pesando)\s*(?:de|es|:)?\s*(\d{2,3})(?:\s*(?:[.,]|con|coma)\s*(\d{1,2}))?/);
+ if(wm){const kg=+(wm[2]+(wm[3]?"."+wm[3]:""));await addW(kg,wd||today());return["Peso registrado: "+f2(kg)+" kg"+(wd&&wd!==today()?" ("+wd+")":"")+".",evolPeso()]}
  const fr=fragmentos(s).map(x=>fecha(x)),ds=new Set(fr.map(x=>x[0]).filter(Boolean));
  let cur=ds.size===1?[...ds][0]:today();
  for(const[fd,it] of fr){
@@ -261,23 +306,24 @@ async function del(t,id){await sb.from(t==="food"?"food_log":"activity_log").del
 function chart(){const a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);
  if(w.length<2)return'<p class="hint">Registra al menos dos pesos en este periodo para ver la evolución (di «peso 68,5»).</p>';
  const v=w.map(x=>x.w),mn=Math.min(...v)-.5,mx=Math.max(...v)+.5,X=x=>10+Math.round((new Date(x.d)-new Date(a))/864e5)/Math.max(PER-1,1)*280,Y=x=>110-(x.w-mn)/(mx-mn)*100;
- return'<svg viewBox="0 0 300 130" style="width:100%"><polyline points="'+w.map(x=>X(x)+","+Y(x)).join(" ")+'" fill="none" stroke="var(--ac)" stroke-width="2"/>'+w.map(x=>'<circle cx="'+X(x)+'" cy="'+Y(x)+'" r="2.5" fill="var(--ac)"/>').join("")+'<text x="10" y="10" font-size="10" fill="var(--mu)">'+f1(mx)+' kg</text><text x="10" y="126" font-size="10" fill="var(--mu)">'+f1(mn)+' kg · '+a.slice(5)+' → '+today().slice(5)+'</text></svg>'}
+ return'<svg viewBox="0 0 300 130" style="width:100%"><polyline points="'+w.map(x=>X(x)+","+Y(x)).join(" ")+'" fill="none" stroke="var(--ac)" stroke-width="2"/>'+w.map(x=>'<circle cx="'+X(x)+'" cy="'+Y(x)+'" r="2.5" fill="var(--ac)"/>').join("")+'<text x="10" y="10" font-size="10" fill="var(--mu)">'+f2(mx)+' kg</text><text x="10" y="126" font-size="10" fill="var(--mu)">'+f2(mn)+' kg · '+a.slice(5)+' → '+today().slice(5)+'</text></svg>'}
 function anillo(P){const tot=P.reduce((t,x)=>t+x[1],0);if(!tot)return'<p class="hint">Sin datos en este periodo.</p>';
  let off=0;const R=40,C=2*Math.PI*R;
  const arcs=P.map(x=>{const l=x[1]/tot*C,a='<circle r="'+R+'" cx="60" cy="60" fill="none" stroke="'+x[2]+'" stroke-width="18" stroke-dasharray="'+l+' '+(C-l)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 60 60)"/>';off+=l;return a}).join("");
  return'<div style="display:flex;align-items:center;gap:12px"><svg viewBox="0 0 120 120" style="width:140px;flex:none">'+arcs+'</svg><div>'+P.map(x=>'<div><span style="color:'+x[2]+'">●</span> '+x[0]+': '+fmt(x[1])+' kcal ('+Math.round(x[1]/tot*100)+'%)</div>').join("")+'</div></div>'}
-let PER=7;
-function setPer(v){PER=+v;datos()}
+let PER=7,PSEL="7";
+function setPer(v){PSEL=v;PER=v==="w"?new Date().getDay()+1:+v;datos()}
 function datos(){const p=D.prof,P=periodo(PER);let h7="";
  for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+fmt(d.i)+"</td><td>"+fmt(d.out)+"</td><td>"+(d.bal>0?"+":"")+fmt(d.bal)+"</td></tr>"}
- const ops=[[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(o[0]===PER?" selected":"")+'>'+o[1]+'</option>').join("");
- $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label></div>'+
+ const ops=[["w","Esta semana (dom–hoy)"],[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(String(o[0])===PSEL?" selected":"")+'>'+o[1]+'</option>').join("");
+ $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label><label>Déficit diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" onchange="setP()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" onchange="setP()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" onchange="setP()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" onchange="setP()"></label></div>'+
  '<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
  '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+fmt(Math.abs(P.def))+' kcal</b></div>'+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
  '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
- '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>'}
+ '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>'}
 async function setP(){
- D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.04;D.goal=num($("#gk").value)||null;
- await sb.from("profiles").upsert({user_id:uid,height_cm:num(D.prof.h)||null,age:num(D.prof.a)||null,sex:D.prof.s,step_kcal:D.stepK,goal_kcal:D.goal});
+ D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.075;D.goal=num($("#gk").value)||null;
+ D.def=$("#df").value===""?null:num($("#df").value);D.defw=$("#dw").value===""?null:num($("#dw").value);D.basal=num($("#bm").value)||null;D.wgoal=num($("#wg").value)||null;
+ await sb.from("profiles").upsert({user_id:uid,height_cm:num(D.prof.h)||null,age:num(D.prof.a)||null,sex:D.prof.s,step_kcal:D.stepK,goal_kcal:D.goal,deficit_kcal:D.def,deficit_week_kcal:D.defw,basal_kcal:D.basal,weight_goal:D.wgoal});
  const w=num($("#pw").value);if(w&&w!==lastW())await addW(w)}
 </script></body></html>
