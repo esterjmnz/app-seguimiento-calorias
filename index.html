@@ -123,20 +123,43 @@ async function addW(kg){
  const d=today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
  D.weights=D.weights.filter(x=>x.d!==d);D.weights.push({d,w:kg});D.weights.sort((a,b)=>a.d<b.d?-1:1)}
 const SPLIT=/\s*(?:,(?!\d)|;|\sy\s|\+)\s*/;
+const DELV=/\b(quita|quitame|quitar|quitalo|elimina|eliminar|eliminalo|borra|borrame|borrar|borralo|anula|anular|cancela|cancelar|deshaz|deshacer)\b/;
+const DSTOP=new Set("el la los las lo de del que he hemos puesto comido comi tome bebi por favor mi me un una ultimo ultima registro registrado entrada y".split(" "));
+async function quitar(n){
+ const words=n.replace(DELV," ").replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(w=>w&&!DSTOP.has(w));
+ const hoyL=D.log.filter(e=>e.d===today()).reverse();
+ if(!hoyL.length)return"Hoy no hay nada registrado que quitar.";
+ const ws=words.map(w=>w.replace(/(es|s)$/,"")).filter(w=>w.length>1);
+ const e=ws.length?(hoyL.find(x=>ws.every(w=>norm(x.txt).includes(w)))||hoyL.find(x=>ws.some(w=>norm(x.txt).includes(w)))):hoyL[0];
+ if(!e)return"No he encontrado «"+words.join(" ")+"» en lo de hoy.";
+ await sb.from(e.t==="food"?"food_log":"activity_log").delete().eq("id",e.id);
+ D.log=D.log.filter(x=>!(x.t===e.t&&x.id===e.id));
+ return"Quitado: "+e.txt+" ("+fmt(e.kcal)+" kcal).";
+}
+function fragmentos(s){
+ const KC=/\d\s*(kcal|calorias?|cal)\b/,out=[];
+ for(const x of s.split(SPLIT).filter(y=>y.trim())){
+  const n=norm(x),p=out.length?norm(out[out.length-1]):"";
+  const suelto=/^\s*\d+([.,]\d+)?\s*(kcal|calorias?|cal)\s*$/.test(n);
+  if(out.length&&(/(gast|quem|consum)/.test(n)||suelto)&&KC.test(n)&&/(ejercicio|hora|min|entren|\bhice\b|\bhecho\b)/.test(p)&&!KC.test(p))out[out.length-1]+=" "+x;
+  else out.push(x)}
+ return out}
 let OPTS=null;
 async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});return error?[]:(data||[]).filter(x=>x.kcal_100g!=null)}
 async function handle(text){
  OPTS=null;const s=text.replace(/hora y media/gi,"1,5 horas"),out=[];
+ if(DELV.test(norm(s)))return[await quitar(norm(s))];
  const wm=norm(s).match(/(he pesado|pese|peso|mi peso)\s*(?:de|es|:)?\s*(\d{2,3}(?:[.,]\d+)?)/);
  if(wm){await addW(num(wm[2]));return["Peso registrado: "+f1(num(wm[2]))+" kg."]}
- for(const it of s.split(SPLIT)){
+ for(const it of fragmentos(s)){
   if(!it.trim())continue;const n=norm(it);let m;
   if(m=n.match(/(\d[\d.]*)\s*pasos?/)){const st=parseInt(m[1].replace(/\./g,"")),c=st*D.stepK;await add("act",fmt(st)+" pasos",c,st);out.push("Pasos: "+fmt(st)+" → "+fmt(c)+" kcal gastadas");continue}
-  const act=findAct(n),kcm=n.match(/(\d+(?:[.,]\d+)?)\s*(?:kcal|calorias)/);
+  const act=findAct(n),kcm=n.match(/(\d+(?:[.,]\d+)?)\s*(?:kcal|calorias?|cal)\b/);
   if(act||(kcm&&/(quem|gast|entren|ejercicio)/.test(n))){
-   let c,desc;
-   if(kcm){c=num(kcm[1]);desc=act||"ejercicio"}
-   else{let h=1;if(m=n.match(/(\d+(?:[.,]\d+)?)\s*(?:h|hora|horas)\b/))h=num(m[1]);else if(m=n.match(/(\d+)\s*(?:min|minutos)\b/))h=num(m[1])/60;else if(/media hora/.test(n))h=.5;c=D.acts[act].k*h;desc=act+" "+f1(h)+" h"}
+   let c,desc,h=null;
+   if(m=n.match(/(\d+(?:[.,]\d+)?)\s*(?:h|hora|horas)\b/))h=num(m[1]);else if(m=n.match(/(\d+)\s*(?:min|minutos)\b/))h=num(m[1])/60;else if(/media hora/.test(n))h=.5;
+   if(kcm){c=num(kcm[1]);desc=(act||"ejercicio")+(h?" "+f1(h)+" h":"")}
+   else{h=h||1;c=D.acts[act].k*h;desc=act+" "+f1(h)+" h"}
    await add("act",desc,c);out.push("Ejercicio: "+desc+" → "+fmt(c)+" kcal gastadas");continue}
   const r=parseFood(it);
   if(r.err){out.push(r.err);continue}
