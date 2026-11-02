@@ -32,6 +32,7 @@ h3{margin:18px 0 8px;font-size:15px}
 .g label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px}
 table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;font-size:13px}
 #auth{margin:auto 0;padding:24px;display:flex;flex-direction:column;gap:10px}
+.vacio{background:var(--bd)}
 .opts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .opts button{text-align:left;font:inherit;font-size:13px;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:8px}
 </style></head><body>
@@ -68,14 +69,14 @@ sb.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
 async function logout(){await sb.auth.signOut();location.reload()}
 
 async function load(){
- const s=daysAgo(30),q=await Promise.all([sb.from("foods").select("*"),sb.from("activities").select("*"),sb.from("food_log").select("*").gte("day",s),sb.from("activity_log").select("*").gte("day",s),sb.from("weights").select("*").order("day"),sb.from("profiles").select("*").maybeSingle()]);
+ const s=daysAgo(90),q=await Promise.all([sb.from("foods").select("*"),sb.from("activities").select("*"),sb.from("food_log").select("*").gte("day",s),sb.from("activity_log").select("*").gte("day",s),sb.from("weights").select("*").order("day"),sb.from("profiles").select("*").maybeSingle()]);
  const own=(a,b)=>(a.user_id?1:0)-(b.user_id?1:0);
  D.foods={};D.acts={};
  (q[0].data||[]).sort(own).forEach(r=>D.foods[r.name.toLowerCase()]={id:r.id,k:r.kcal_100g,p:r.portion_g,u:r.portion_name,kp:r.kcal_portion,own:!!r.user_id});
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
  D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));
- const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.04)}
+ const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.04);D.goal=p.goal_kcal!=null?+p.goal_kcal:null}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
 const palabras=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w&&!STOP.has(w));
@@ -83,7 +84,7 @@ function findFood(n){const w=palabras(n);let b=null,bs=0;for(const name in D.foo
 function findAct(n){for(const a in D.acts)for(const m of D.acts[a].m)if(new RegExp("(^|[^a-z])"+m).test(n))return a;return null}
 function cut(t,re){const m=re.exec(norm(t));if(!m)return[null,t];return[m,t.slice(0,m.index)+" "+t.slice(m.index+m[0].length)]}
 const QW={un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,medio:.5,media:.5};
-const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi".split(" "));
+const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece".split(" "));
 function parseFood(raw){
  let t=raw.toLowerCase(),per,kc,gr;
  [per,t]=cut(t,/(por|cada|\/)\s*100\s*(g|gr|gramos|ml)\b/);
@@ -165,10 +166,39 @@ function fecha(t){
  [m,r]=cut(t,/\b(?:el )?(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/);
  if(m){let k=(h0.getDay()-DSEM.indexOf(m[1])+7)%7;if(k===0)k=7;return[rel(k),r]}
  return[null,t]}
+function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),meta=D.goal||(d.b?d.out:0);
+ if(!meta)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Datos para calcular cuántas te quedan.";
+ const q=meta-d.i;
+ return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+(D.goal?"tu objetivo de "+fmt(D.goal):"mantenimiento ("+fmt(meta)+")")+"."}
+async function setGoal(g){D.goal=g;await sb.from("profiles").upsert({user_id:uid,goal_kcal:g})}
+async function consulta(s){
+ const ns=norm(s),mi=ns.search(/\b(pero|para saber|quiero que|dime|cuantas)\b/),q=mi>0?s.slice(0,mi):s;
+ const[fd,q2]=fecha(q),dia=fd||today(),bak=JSON.stringify(D.foods);let tot=0;const L=[];
+ for(const it of q2.split(/\s*(?:,|;|\scon\s|\sy\s|\+)\s*/).filter(x=>x.trim())){
+  if(!palabras(it).length)continue;
+  const r=parseFood(it);
+  if(r.err||r.unknown){L.push("No conozco «"+(r.name||it.trim())+"». Dime sus calorías, por ejemplo: «"+(r.name||"alimento")+" 120 kcal».");continue}
+  tot+=r.kcal;L.push(r.desc+" → "+fmt(r.kcal)+" kcal")}
+ D.foods=JSON.parse(bak);
+ const d=day(dia),meta=D.goal||(d.b?d.out:0);
+ L.push("Total: "+fmt(tot)+" kcal (no se ha guardado).");
+ L.push(meta?"Llevas "+fmt(d.i)+" de "+fmt(meta)+"; con esto serían "+fmt(d.i+tot)+" y "+(meta-d.i-tot>=0?"te quedarían "+fmt(meta-d.i-tot):"te pasarías en "+fmt(d.i+tot-meta))+" kcal.":"Completa tu perfil en Datos para saber si encaja en el día.");
+ return L}
+function periodo(n){const r={i:0,b:0,p:0,o:0,def:0,nc:0};
+ for(let k=0;k<n;k++){const dd=daysAgo(k),E=D.log.filter(e=>e.d===dd);if(!E.length)continue;
+  E.forEach(e=>{if(e.t==="food")r.i+=e.kcal;else if(/pasos$/.test(e.txt))r.p+=e.kcal;else r.o+=e.kcal});
+  const d=day(dd);r.b+=d.b;if(d.i>0){r.def+=d.out-d.i;r.nc++}}
+ return r}
 let OPTS=null;
 async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});return error?[]:(data||[]).filter(x=>x.kcal_100g!=null)}
 async function handle(text){
  OPTS=null;const s=text.replace(/hora y media/gi,"1,5 horas"),out=[];
+ const n0=norm(s);
+ if(/\b(objetivo|meta)\b/.test(n0)){const gm=n0.match(/(\d{3,4})/);
+  if(gm){await setGoal(+gm[1]);return["Objetivo diario: "+fmt(+gm[1])+" kcal.\n"+resumen(today())]}
+  if(DELV.test(n0)){await setGoal(null);return["Objetivo quitado: vuelvo a mantenimiento.\n"+resumen(today())]}}
+ if(/(cuantas|que) (calorias|kcal).*(llevo|quedan|he comido|he consumido)/.test(n0))return[resumen(fecha(n0)[0]||today())];
+ if(/(estoy pensando|pensando en|voy a comer|podria comer|puedo comer|me apetece|cuantas (calorias|kcal)|encaja)/.test(n0))return await consulta(s);
  if(DELV.test(norm(s))){const[dq,sq]=fecha(norm(s));return[await quitar(sq,dq||today())]}
  const[wd,sw]=fecha(s),wm=norm(sw).match(/(he pesado|pese|peso|mi peso)\s*(?:de|es|:)?\s*(\d{2,3}(?:[.,]\d+)?)/);
  if(wm){await addW(num(wm[2]),wd||today());return["Peso registrado: "+f1(num(wm[2]))+" kg"+(wd&&wd!==today()?" ("+wd+")":"")+"."]}
@@ -176,6 +206,7 @@ async function handle(text){
  let cur=ds.size===1?[...ds][0]:today();
  for(const[fd,it] of fr){
   if(ds.size>1&&fd)cur=fd;
+  if(!palabras(it).length)continue;
   if(!it.trim())continue;const n=norm(it);let m;const sf=cur!==today()?" ("+cur.slice(5)+")":"";
   if(m=n.match(/(\d[\d.]*)\s*pasos?/)){const st=parseInt(m[1].replace(/\./g,"")),c=st*D.stepK;await add("act",fmt(st)+" pasos",c,st,cur);out.push("Pasos: "+fmt(st)+" → "+fmt(c)+" kcal gastadas"+sf);continue}
   const act=findAct(n),kcm=n.match(/(\d+(?:[.,]\d+)?)\s*(?:kcal|calorias?|cal)\b/);
@@ -194,8 +225,7 @@ async function handle(text){
   if(r.save)await saveFood(r.f,r.name);
   await add("food",r.desc,r.kcal,null,cur);out.push(r.desc+" → "+fmt(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
  }
- if(!OPTS){const d=day(cur);
-  out.push((cur===today()?"Hoy":cur.slice(5))+": "+fmt(d.i)+" kcal ingeridas"+(d.b?" · balance "+(d.bal>0?"+":"")+fmt(d.bal)+" kcal":"")+".")}
+ if(!OPTS)out.push(resumen(cur));
  return out}
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
@@ -213,29 +243,41 @@ async function pick(mi,i){
   const desc=r.G?r.G+" g de "+r.name:r.q+" × 100 g de "+r.name;
   await saveFood(f,r.name,"mercadona");await add("food",desc,total,null,r.dia);
   const d=day(today());
-  msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\nHoy: "+fmt(d.i)+" kcal ingeridas."})
+  msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
 function tab(n){for(let i=0;i<4;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos();if(n===3)misAlimentos()}
 let MIS=[];
+const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
  MIS=Object.keys(D.foods).filter(n=>D.foods[n].own).sort();
- $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':fmt(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
+ $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input'+gris(f.k)+' value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input'+gris(f.p)+' value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input'+gris(f.kp)+' value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':fmt(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
 async function editF(i,c,v){const f=D.foods[MIS[i]];f[c]=v===""?null:num(v);if(f.id)await sb.from("foods").update({kcal_100g:f.k,portion_g:f.p,kcal_portion:f.kp}).eq("id",f.id);misAlimentos()}
 async function delF(i){const n=MIS[i],f=D.foods[n];if(f.id)await sb.from("foods").delete().eq("id",f.id);delete D.foods[n];misAlimentos()}
 function hoy(){const d=day(today());
  $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div><p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Datos para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
  (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
 async function del(t,id){await sb.from(t==="food"?"food_log":"activity_log").delete().eq("id",id);D.log=D.log.filter(e=>!(e.t===t&&e.id===id));hoy()}
-function chart(){const w=D.weights.slice(-30);if(w.length<2)return'<p class="hint">Registra al menos dos pesos para ver la evolución.</p>';
- const v=w.map(x=>x.w),mn=Math.min(...v)-1,mx=Math.max(...v)+1,pts=w.map((x,i)=>(10+i*280/(w.length-1))+","+(110-(x.w-mn)/(mx-mn)*100)).join(" ");
- return'<svg viewBox="0 0 300 120" style="width:100%"><polyline points="'+pts+'" fill="none" stroke="var(--ac)" stroke-width="2"/><text x="10" y="12" font-size="10" fill="var(--mu)">'+f1(mx)+' kg</text><text x="10" y="118" font-size="10" fill="var(--mu)">'+f1(mn)+' kg</text></svg>'}
-function datos(){const p=D.prof;let h7="";
+function chart(){const a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);
+ if(w.length<2)return'<p class="hint">Registra al menos dos pesos en este periodo para ver la evolución (di «peso 68,5»).</p>';
+ const v=w.map(x=>x.w),mn=Math.min(...v)-.5,mx=Math.max(...v)+.5,X=x=>10+Math.round((new Date(x.d)-new Date(a))/864e5)/Math.max(PER-1,1)*280,Y=x=>110-(x.w-mn)/(mx-mn)*100;
+ return'<svg viewBox="0 0 300 130" style="width:100%"><polyline points="'+w.map(x=>X(x)+","+Y(x)).join(" ")+'" fill="none" stroke="var(--ac)" stroke-width="2"/>'+w.map(x=>'<circle cx="'+X(x)+'" cy="'+Y(x)+'" r="2.5" fill="var(--ac)"/>').join("")+'<text x="10" y="10" font-size="10" fill="var(--mu)">'+f1(mx)+' kg</text><text x="10" y="126" font-size="10" fill="var(--mu)">'+f1(mn)+' kg · '+a.slice(5)+' → '+today().slice(5)+'</text></svg>'}
+function anillo(P){const tot=P.reduce((t,x)=>t+x[1],0);if(!tot)return'<p class="hint">Sin datos en este periodo.</p>';
+ let off=0;const R=40,C=2*Math.PI*R;
+ const arcs=P.map(x=>{const l=x[1]/tot*C,a='<circle r="'+R+'" cx="60" cy="60" fill="none" stroke="'+x[2]+'" stroke-width="18" stroke-dasharray="'+l+' '+(C-l)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 60 60)"/>';off+=l;return a}).join("");
+ return'<div style="display:flex;align-items:center;gap:12px"><svg viewBox="0 0 120 120" style="width:140px;flex:none">'+arcs+'</svg><div>'+P.map(x=>'<div><span style="color:'+x[2]+'">●</span> '+x[0]+': '+fmt(x[1])+' kcal ('+Math.round(x[1]/tot*100)+'%)</div>').join("")+'</div></div>'}
+let PER=7;
+function setPer(v){PER=+v;datos()}
+function datos(){const p=D.prof,P=periodo(PER);let h7="";
  for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+fmt(d.i)+"</td><td>"+fmt(d.out)+"</td><td>"+(d.bal>0?"+":"")+fmt(d.bal)+"</td></tr>"}
- $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label></div>'+
- '<h3>Evolución del peso</h3>'+chart()+'<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>'}
+ const ops=[[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(o[0]===PER?" selected":"")+'>'+o[1]+'</option>').join("");
+ $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label></div>'+
+ '<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
+ '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+fmt(Math.abs(P.def))+' kcal</b></div>'+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
+ '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
+ '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>'}
 async function setP(){
- D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.04;
- await sb.from("profiles").upsert({user_id:uid,height_cm:num(D.prof.h)||null,age:num(D.prof.a)||null,sex:D.prof.s,step_kcal:D.stepK});
+ D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.04;D.goal=num($("#gk").value)||null;
+ await sb.from("profiles").upsert({user_id:uid,height_cm:num(D.prof.h)||null,age:num(D.prof.a)||null,sex:D.prof.s,step_kcal:D.stepK,goal_kcal:D.goal});
  const w=num($("#pw").value);if(w&&w!==lastW())await addW(w)}
 </script></body></html>
