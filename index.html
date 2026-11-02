@@ -8,7 +8,7 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:640px;margin:0 auto;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 nav{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--bd)}
-nav button{flex:1;padding:9px;border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:10px;font:inherit}
+nav button{flex:1;padding:8px 2px;font-size:13px;min-width:0;border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:10px;font:inherit}
 nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 #c0{flex-direction:column;flex:1;min-height:0}
 #msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
@@ -40,9 +40,9 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 <input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw0" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="current-password">
 <button class="btn" onclick="login(false)">Entrar</button><button class="btn o" onclick="login(true)">Crear cuenta</button><div id="aerr" class="hint" style="color:var(--bad)"></div></div>
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
-<nav><button id="t4" class="on" onclick="tab(4)">Inicio</button><button id="t0" onclick="tab(0)">Chat</button><button id="t1" onclick="tab(1)">Hoy</button><button id="t2" onclick="tab(2)">Datos</button><button id="t3" onclick="tab(3)">Alimentos</button></nav>
+<nav><button id="t4" class="on" onclick="tab(4)">Inicio</button><button id="t0" onclick="tab(0)">Chat</button><button id="t1" onclick="tab(1)">Hoy</button><button id="t2" onclick="tab(2)">Datos</button><button id="t3" onclick="tab(3)">Alimentos</button><button id="t5" onclick="tab(5)">Guía</button></nav>
 <section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off"><button class="btn" onclick="send()">Enviar</button></div></section>
-<main id="c4"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
+<main id="c4"></main><main id="c5" style="display:none"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script>
@@ -77,7 +77,7 @@ async function load(){
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
  D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));
- const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||""}
+ const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modo=p.goal_mode||""}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
 const palabras=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w&&!STOP.has(w));
@@ -168,11 +168,11 @@ function fecha(t){
  if(m){let k=(h0.getDay()-DSEM.indexOf(m[1])+7)%7;if(k===0)k=7;return[rel(k),r]}
  return[null,t]}
 let ULT=null;
-function metaDia(d){if(D.def!=null)return{l:d.out-D.def,t:"tu objetivo de déficit de "+fmt(D.def)};if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
+function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+fmt(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
 function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
  if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Datos para calcular cuántas te quedan.";
  const q=m.l-d.i;
- return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."}
+ return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."+(d.b&&m.l<d.b?" Ojo: ese límite está por debajo de tu metabolismo basal ("+fmt(d.b)+"); no se recomienda comer tan poco.":"")}
 async function setCol(col,key,v){D[key]=v;await sb.from("profiles").upsert({user_id:uid,[col]:v})}
 const setGoal=g=>setCol("goal_kcal","goal",g);
 function rep(t,re,fn){let m;while((m=re.exec(norm(t)))){t=t.slice(0,m.index)+fn(m)+t.slice(m.index+m[0].length)}return t}
@@ -195,7 +195,7 @@ function semana(off){const h=new Date();h.setHours(12,0,0,0);const ini=new Date(
   L.push(d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric"})+": "+(r.i>0?fmt(r.i)+" ingeridas · gasto "+fmt(r.out)+" · balance "+(r.bal>0?"+":"")+fmt(r.bal):"sin registro"))}
  return{L,acc,nd,ini:iso(ini)}}
 function resSemana(off){const a=semana(off),o=semana(off+1),obj=D.defw!=null?D.defw:(D.def!=null?D.def*7:null);
- return["Semana desde "+a.ini.slice(5)+":"].concat(a.L,["Acumulado: "+(a.acc>0?"+":"")+fmt(a.acc)+" kcal en "+a.nd+" días"+(obj!=null?" (objetivo semanal: −"+fmt(obj)+")":"")+".","Semana anterior: "+(o.acc>0?"+":"")+fmt(o.acc)+" kcal."]).join("\n")}
+ return["Semana desde "+a.ini.slice(5)+":"].concat(a.L,["Acumulado: "+(a.acc>0?"+":"")+fmt(a.acc)+" kcal en "+a.nd+" días"+(obj!=null?" (objetivo semanal: "+(D.modo==="superavit"?"+":"−")+fmt(obj)+")":"")+".","Semana anterior: "+(o.acc>0?"+":"")+fmt(o.acc)+" kcal."]).join("\n")}
 function nota(){const P=periodo(PER),a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);
  let t="Seguimiento de peso y calorías\nPeriodo: "+a+" a "+today()+"\n\nObjetivos\n"+(D.wgoal?"- Peso objetivo: "+f2(D.wgoal)+" kg\n":"")+(D.def!=null?"- Déficit diario: "+fmt(D.def)+" kcal\n":"")+(D.defw!=null?"- Déficit semanal: "+fmt(D.defw)+" kcal\n":"")+(D.goal?"- Ingesta objetivo: "+fmt(D.goal)+" kcal\n":"");
  t+="\nEvolución del peso\n"+(w.map(x=>x.d+": "+f2(x.w)+" kg").join("\n")||"sin registros")+"\n\nBalance por día (ingesta / gasto / balance)\n";
@@ -240,7 +240,7 @@ async function handle(text){
  if(/(nota|resumen).*(copiar|copia)|copiar.*(nota|resumen)/.test(n0))return[nota()];
  if(/\b(objetivo|meta)\b/.test(n0)){const gm=n0.match(/(\d{1,4}(?:[.,]\d+)?)/),v=gm?num(gm[1]):null;
   const k=/peso/.test(n0)?["weight_goal","wgoal","Peso objetivo"]:/semana/.test(n0)?["deficit_week_kcal","defw","Déficit semanal"]:/deficit/.test(n0)?["deficit_kcal","def","Déficit diario"]:["goal_kcal","goal","Objetivo de ingesta"];
-  if(v!=null&&!DELV.test(n0)){await setCol(k[0],k[1],v);return[k[2]+": "+f2(v)+(k[1]==="wgoal"?" kg":" kcal")+".\n"+resumen(today())]}
+  if(v!=null&&!DELV.test(n0)){await setCol(k[0],k[1],v);return[k[2]+": "+f2(v)+(k[1]==="wgoal"?" kg":" kcal")+".\n"+resumen(today())+(k[1]==="def"&&v>600?"\n"+AVISO:"")]}
   if(DELV.test(n0)){for(const c of (/peso|semana|deficit/.test(n0)?[k]:[["goal_kcal","goal"],["deficit_kcal","def"]]))await setCol(c[0],c[1],null);return["Quitado. Vuelvo a mantenimiento si no queda otro objetivo.\n"+resumen(today())]}}
  if(/(cuantas|que) (calorias|kcal).*(llevo|quedan|he comido|he consumido)/.test(n0))return[resumen(fecha(n0)[0]||today())];
  if(/(estoy pensando|pensando en|voy a (comer|cenar|tomar|desayunar|almorzar)|podria (comer|cenar|tomar)|puedo (comer|cenar|tomar)|me apetece|me gustaria (tomar|comer|cenar)|todavia no|no lo he|cuanto (seria|serian|son|suponen|tiene|tienen)|cuantas (calorias|kcal)|encaja|organizar|planificar)/.test(n0))return await consulta(s);
@@ -291,7 +291,7 @@ async function pick(mi,i){
   msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){for(let i=0;i<5;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===0)setTimeout(()=>$("#in").focus(),50)}
+function tab(n){for(let i=0;i<6;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
 let MIS=[];
 const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
@@ -299,13 +299,34 @@ function misAlimentos(){
  $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input'+gris(f.k)+' value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input'+gris(f.p)+' value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input'+gris(f.kp)+' value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':fmt(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
 async function editF(i,c,v){const f=D.foods[MIS[i]];f[c]=v===""?null:num(v);if(f.id)await sb.from("foods").update({kcal_100g:f.k,portion_g:f.p,kcal_portion:f.kp}).eq("id",f.id);misAlimentos()}
 async function delF(i){const n=MIS[i],f=D.foods[n];if(f.id)await sb.from("foods").delete().eq("id",f.id);delete D.foods[n];misAlimentos()}
+const ICO={down:'<path d="M12 5v14M6 13l6 6 6-6"/>',up:'<path d="M12 19V5M6 11l6-6 6 6"/>',equal:'<path d="M5 9h14M5 15h14"/>',flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/>',steps:'<ellipse cx="8" cy="8" rx="2.5" ry="4"/><ellipse cx="16" cy="16" rx="2.5" ry="4"/>',dumbbell:'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',apple:'<path d="M12 8c-3-2-7 0-7 5 0 4 3 8 5 7 1-.5 1.5-.5 2 0 2 1 5-3 5-7 0-5-4-7-5-5z"/><path d="M12 8c0-2 1-3 3-4"/>'};
+const ico=(n,c,z)=>'<svg viewBox="0 0 24 24" width="'+(z||28)+'" height="'+(z||28)+'" fill="none" stroke="'+(c||"var(--ac)")+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none">'+ICO[n]+'</svg>';
+const MODOS={deficit:["down","Perder grasa","Déficit moderado y sostenible"],mantenimiento:["equal","Mantenerme","Comer lo que gasto"],superavit:["up","Ganar masa","Pequeño superávit (guía propia próximamente)"]};
+const AVISO="Un déficit de más de 600 kcal/día es grande. Lo habitual recomendado son 300–500 kcal/día y conviene conseguirlo sumando movimiento antes que comiendo menos. Si tienes dudas, consulta con un profesional sanitario.";
+async function elegir(m){await setCol("goal_mode","modo",m);
+ if(m==="mantenimiento"){await setCol("deficit_kcal","def",null);await setCol("goal_kcal","goal",null)}
+ else if(D.def==null)await setCol("deficit_kcal","def",m==="deficit"?300:250);
+ inicio()}
+function objetivoPantalla(){return'<div style="text-align:center;padding:16px 0 4px"><h2 style="margin:0 0 6px">¿Qué quieres conseguir?</h2><p class="hint" style="margin:0">Elige tu punto de partida. Podrás cambiarlo cuando quieras.</p></div>'+
+ Object.keys(MODOS).map(k=>'<button onclick="elegir(\''+k+'\')" style="width:100%;display:flex;gap:14px;align-items:center;text-align:left;margin-top:10px;padding:14px;font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:16px">'+ico(MODOS[k][0],"var(--ac)",32)+'<span><b>'+MODOS[k][1]+'</b><br><span class="hint">'+MODOS[k][2]+'</span></span></button>').join("")+
+ '<div class="card" style="margin-top:16px">'+[["clock","Todo proceso es lento: la constancia gana a la prisa."],["apple","Come de todo: ningún alimento está prohibido."],["shield","No existen las dietas milagro. No uses esta app para comer muy poco."]].map(x=>'<div style="display:flex;gap:10px;align-items:center;padding:6px 0">'+ico(x[0],"var(--ac)",24)+'<span>'+x[1]+'</span></div>').join("")+'</div>'}
+const GUIA=[["flame","7.700 kcal ≈ 1 kg de grasa","Es una aproximación útil, no una ley exacta. En estudios con dietas hipocalóricas, la energía medida por kg perdido fue menor al principio (unas 4.900 kcal/kg a las 4 semanas) y mayor después (unas 6.600 a las 24 semanas). Por eso el peso no baja en línea recta."],
+["down","Un déficit sano es moderado","Se recomienda perder como máximo entre 0,5 y 1 kg por semana (NHS, CDC). Para muchas personas, un déficit de 300–500 kcal/día ya es suficiente y más fácil de mantener. Si es menor, tarda más, pero se sostiene mejor."],
+["dumbbell","Mejor sumar movimiento que recortar comida","Nuestro enfoque: aumentar el gasto (pasos, fuerza, cardio) antes que comer menos. Así mantienes la energía, comes de todo y proteges el músculo."],
+["shield","No comas por debajo de lo recomendable","No bajes de tu metabolismo basal. Por debajo de unas 800 kcal al día, solo con supervisión médica. Si tienes o has tenido un trastorno de la conducta alimentaria, no uses contadores de calorías sin acompañamiento profesional."],
+["steps","Pasos: entre 6.000 y 10.000","En una revisión de 57 estudios (Lancet Public Health, 2025), con unos 7.000 pasos al día el riesgo de mortalidad fue un 47 % menor que con 2.000. El mayor beneficio llega entre 5.000 y 7.000 y 10.000 sigue siendo buena meta si eres activo. Cada paso cuenta."],
+["dumbbell","Cuánto gasta una hora de fuerza","Entre unas 180 y 265 kcal por hora de entrenamiento de fuerza general para personas de 57 a 84 kg (Harvard Health); más si es intenso. Su gran valor es cuidar y ganar músculo, no solo gastar calorías."],
+["clock","Actividad semanal","Las guías de EE. UU. recomiendan al menos 150 minutos a la semana de actividad aeróbica moderada o 75 de vigorosa."],
+["apple","Come de todo y mira la tendencia","Ningún alimento está prohibido. Mira la media semanal, no el peso de un día: el agua, la sal y la digestión mueven la báscula."]];
+function guia(){$("#c5").innerHTML='<h3 style="margin-top:6px">Cómo hacerlo de forma sana</h3>'+GUIA.map(g=>'<div class="card" style="display:flex;gap:12px;margin-bottom:10px">'+ico(g[0],"var(--ac)",30)+'<div><b>'+g[1]+'</b><p style="margin:4px 0 0" class="hint">'+g[2]+'</p></div></div>').join("")+'<p class="hint">Información general: no sustituye a un profesional sanitario. Fuentes: Lancet Public Health (2025), Harvard Health Publishing, NHS, CDC, Hall et al. (estudio CALERIE), guías del HHS de EE. UU.</p>'}
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
 function inicio(){
+ if(!D.modo){$("#c4").innerHTML=objetivoPantalla();return}
  $("#c4").innerHTML='<div style="text-align:center;padding:28px 0 8px"><h2 style="margin:0 0 10px;font-size:28px">Hola'+(D.name?" "+esc(D.name):"")+'</h2><p style="margin:0;color:var(--mu)">'+FRASES[new Date().getDate()%FRASES.length]+'</p></div>'+
  (D.name?"":'<div style="display:flex;gap:8px;margin:12px 0"><input id="nm0" placeholder="¿Cómo te llamas?" style="flex:1"><button class="btn" onclick="guardarNombre()">Guardar</button></div>')+
- '<button onclick="tab(0)" style="width:100%;margin-top:22px;padding:22px 18px;font:inherit;font-size:16px;text-align:left;color:var(--mu);background:var(--sf);border:2px solid var(--ac);border-radius:20px;display:flex;justify-content:space-between;align-items:center"><span>Cuéntame qué has comido o hecho hoy…</span><span style="color:var(--ac);font-size:22px">→</span></button>'+
- '<div style="text-align:center;margin-top:32px"><button onclick="tab(2)" style="background:none;border:0;color:var(--tx);font:inherit"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 4px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Introducir datos</button></div>'}
+ '<p class="hint" style="text-align:center;margin:14px 0 0">Tu objetivo: <b>'+MODOS[D.modo][1]+'</b> · <a href="#" onclick="D.modo=\'\';inicio();return false" style="color:var(--ac)">cambiar</a></p>'+'<button onclick="tab(0)" style="width:100%;margin-top:22px;padding:22px 18px;font:inherit;font-size:16px;text-align:left;color:var(--mu);background:var(--sf);border:2px solid var(--ac);border-radius:20px;display:flex;justify-content:space-between;align-items:center"><span>Cuéntame qué has comido o hecho hoy…</span><span style="color:var(--ac);font-size:22px">→</span></button>'+
+ '<div style="text-align:center;margin-top:32px"><button onclick="tab(2)" style="background:none;border:0;color:var(--tx);font:inherit"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 4px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Introducir datos</button></div><div style="text-align:center;margin-top:18px"><button onclick="tab(5)" style="background:none;border:0;color:var(--tx);font:inherit">'+ico("shield","var(--ac)",30)+'<br>Cómo hacerlo de forma sana</button></div>'}
 function hoy(){const d=day(today());
  $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div><p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Datos para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
  (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
@@ -335,14 +356,14 @@ function setPer(v){PSEL=v;PER=v==="w"?new Date().getDay()+1:+v;datos()}
 function datos(){const p=D.prof,P=periodo(PER);let h7="";
  for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+fmt(d.i)+"</td><td>"+fmt(d.out)+"</td><td>"+(d.bal>0?"+":"")+fmt(d.bal)+"</td></tr>"}
  const ops=[["w","Esta semana (dom–hoy)"],[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(String(o[0])===PSEL?" selected":"")+'>'+o[1]+'</option>').join("");
- $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" onchange="setP()"></label><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label><label>Déficit diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" onchange="setP()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" onchange="setP()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" onchange="setP()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" onchange="setP()"></label></div>'+
+ $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" onchange="setP()"></label><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" onchange="setP()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" onchange="setP()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" onchange="setP()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" onchange="setP()"></label></div>'+
  '<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
  '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+fmt(Math.abs(P.def))+' kcal</b></div>'+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
  '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
  '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>'}
 async function setP(){
  D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.075;D.goal=num($("#gk").value)||null;
- D.def=$("#df").value===""?null:num($("#df").value);D.defw=$("#dw").value===""?null:num($("#dw").value);D.basal=num($("#bm").value)||null;D.wgoal=num($("#wg").value)||null;D.name=$("#nm").value.trim();
+ D.def=$("#df").value===""?null:num($("#df").value);D.defw=$("#dw").value===""?null:num($("#dw").value);D.basal=num($("#bm").value)||null;D.wgoal=num($("#wg").value)||null;D.name=$("#nm").value.trim();if(D.def>600)alert(AVISO);
  await sb.from("profiles").upsert({user_id:uid,height_cm:num(D.prof.h)||null,age:num(D.prof.a)||null,sex:D.prof.s,step_kcal:D.stepK,goal_kcal:D.goal,deficit_kcal:D.def,deficit_week_kcal:D.defw,basal_kcal:D.basal,weight_goal:D.wgoal,name:D.name||null});
  const w=num($("#pw").value);if(w&&w!==lastW())await addW(w)}
 </script></body></html>
