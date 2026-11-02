@@ -7,9 +7,12 @@
 @media (prefers-color-scheme:dark){:root{--bg:#161715;--sf:#202220;--tx:#eeeee8;--mu:#9a9a92;--ac:#5cc496;--bd:#33362f;--bad:#e8826c;color-scheme:dark}}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:640px;margin:0 auto;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
-nav{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--bd)}
-nav button{flex:1;padding:8px 2px;font-size:13px;min-width:0;border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:10px;font:inherit}
-nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+#top{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd)}
+#mbtn{background:none;border:0;color:var(--tx);padding:6px}
+#menu{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:10}
+nav{position:absolute;top:calc(env(safe-area-inset-top,0px) + 52px);right:12px;background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:6px;min-width:220px;display:flex;flex-direction:column;gap:2px}
+nav button{display:flex;align-items:center;gap:10px;padding:12px;border:0;background:none;color:var(--tx);border-radius:10px;font:inherit;text-align:left}
+nav button.on{background:var(--ac);color:#fff}
 #c0{flex-direction:column;flex:1;min-height:0}
 #msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
 .m{max-width:85%;padding:9px 12px;border-radius:14px;white-space:pre-line}
@@ -40,9 +43,10 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 <input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw0" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="current-password">
 <button class="btn" onclick="login(false)">Entrar</button><button class="btn o" onclick="login(true)">Crear cuenta</button><div id="aerr" class="hint" style="color:var(--bad)"></div></div>
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
-<nav><button id="t4" class="on" onclick="tab(4)">Inicio</button><button id="t0" onclick="tab(0)">Chat</button><button id="t1" onclick="tab(1)">Hoy</button><button id="t2" onclick="tab(2)">Datos</button><button id="t3" onclick="tab(3)">Alimentos</button><button id="t5" onclick="tab(5)">Guía</button></nav>
+<header id="top"><b style="font-size:17px">FitnessJourney</b><button id="mbtn" onclick="menu()" aria-label="Menú"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></header>
+<div id="menu" style="display:none" onclick="this.style.display='none'"><nav id="navm" onclick="event.stopPropagation()"></nav></div>
 <section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off"><button class="btn" onclick="send()">Enviar</button></div></section>
-<main id="c4"></main><main id="c5" style="display:none"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
+<main id="c4"></main><main id="c5" style="display:none"></main><main id="c6" style="display:none"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script>
@@ -65,7 +69,7 @@ async function login(up){
  if(error){$("#aerr").textContent=error.message;return}
  if(!data.session){$("#aerr").textContent="Revisa tu email para confirmar la cuenta.";return}
  start(data.session.user)}
-async function start(u){uid=u.id;await load();$("#auth").style.display="none";$("#app").style.display="flex";draw();tab(4)}
+async function start(u){uid=u.id;await load();$("#auth").style.display="none";$("#app").style.display="flex";draw();renderMenu();tab(4)}
 sb.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
 async function logout(){await sb.auth.signOut();location.reload()}
 
@@ -170,7 +174,7 @@ function fecha(t){
 let ULT=null;
 function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+fmt(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
 function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
- if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Datos para calcular cuántas te quedan.";
+ if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Información para calcular cuántas te quedan.";
  const q=m.l-d.i;
  return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."+(d.b&&m.l<d.b?" Ojo: ese límite está por debajo de tu metabolismo basal ("+fmt(d.b)+"); no se recomienda comer tan poco.":"")}
 async function setCol(col,key,v){D[key]=v;await sb.from("profiles").upsert({user_id:uid,[col]:v})}
@@ -217,7 +221,7 @@ async function consulta(s){
  const d=day(dia),m=metaDia(d),pr=d.i+tot-d.out;
  if(d.out)L.push("Previsión: llevas "+fmt(d.i)+" + esto "+fmt(tot)+" = "+fmt(d.i+tot)+" kcal. Gasto estimado "+fmt(d.out)+" → balance previsto "+(pr>0?"+":"")+fmt(pr)+(D.def!=null?" (objetivo −"+fmt(D.def)+")":"")+".");
  if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+fmt(m.l-d.i-tot):"Te pasarías en "+fmt(d.i+tot-m.l))+" kcal para "+m.t+".");
- else L.push("Completa tu perfil en Datos para saber si encaja en el día.");
+ else L.push("Completa tu perfil en Información para saber si encaja en el día.");
  return L}
 function periodo(n){const r={i:0,b:0,p:0,o:0,def:0,nc:0};
  for(let k=0;k<n;k++){const dd=daysAgo(k),E=D.log.filter(e=>e.d===dd);if(!E.length)continue;
@@ -291,7 +295,7 @@ async function pick(mi,i){
   msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){for(let i=0;i<6;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
+function tab(n){$("#menu").style.display="none";for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
 let MIS=[];
 const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
@@ -299,7 +303,7 @@ function misAlimentos(){
  $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input'+gris(f.k)+' value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input'+gris(f.p)+' value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input'+gris(f.kp)+' value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':fmt(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
 async function editF(i,c,v){const f=D.foods[MIS[i]];f[c]=v===""?null:num(v);if(f.id)await sb.from("foods").update({kcal_100g:f.k,portion_g:f.p,kcal_portion:f.kp}).eq("id",f.id);misAlimentos()}
 async function delF(i){const n=MIS[i],f=D.foods[n];if(f.id)await sb.from("foods").delete().eq("id",f.id);delete D.foods[n];misAlimentos()}
-const ICO={down:'<path d="M12 5v14M6 13l6 6 6-6"/>',up:'<path d="M12 19V5M6 11l6-6 6 6"/>',equal:'<path d="M5 9h14M5 15h14"/>',flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/>',steps:'<ellipse cx="8" cy="8" rx="2.5" ry="4"/><ellipse cx="16" cy="16" rx="2.5" ry="4"/>',dumbbell:'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',apple:'<path d="M12 8c-3-2-7 0-7 5 0 4 3 8 5 7 1-.5 1.5-.5 2 0 2 1 5-3 5-7 0-5-4-7-5-5z"/><path d="M12 8c0-2 1-3 3-4"/>'};
+const ICO={down:'<path d="M12 5v14M6 13l6 6 6-6"/>',up:'<path d="M12 19V5M6 11l6-6 6 6"/>',equal:'<path d="M5 9h14M5 15h14"/>',flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/>',steps:'<ellipse cx="8" cy="8" rx="2.5" ry="4"/><ellipse cx="16" cy="16" rx="2.5" ry="4"/>',dumbbell:'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',home:'<path d="M4 11l8-7 8 7v9H4z"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/>',today:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',chart:'<path d="M4 20V4M4 20h16M8 16v-5M13 16V8M18 16v-9"/>',apple:'<path d="M12 8c-3-2-7 0-7 5 0 4 3 8 5 7 1-.5 1.5-.5 2 0 2 1 5-3 5-7 0-5-4-7-5-5z"/><path d="M12 8c0-2 1-3 3-4"/>'};
 const ico=(n,c,z)=>'<svg viewBox="0 0 24 24" width="'+(z||28)+'" height="'+(z||28)+'" fill="none" stroke="'+(c||"var(--ac)")+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none">'+ICO[n]+'</svg>';
 const MODOS={deficit:["down","Perder grasa","Déficit moderado y sostenible"],mantenimiento:["equal","Mantenerme","Comer lo que gasto"],superavit:["up","Ganar masa","Pequeño superávit (guía propia próximamente)"]};
 const AVISO="Un déficit de más de 600 kcal/día es grande. Lo habitual recomendado son 300–500 kcal/día y conviene conseguirlo sumando movimiento antes que comiendo menos. Si tienes dudas, consulta con un profesional sanitario.";
@@ -319,6 +323,9 @@ const GUIA=[["flame","7.700 kcal ≈ 1 kg de grasa","Es una aproximación útil,
 ["clock","Actividad semanal","Las guías de EE. UU. recomiendan al menos 150 minutos a la semana de actividad aeróbica moderada o 75 de vigorosa."],
 ["apple","Come de todo y mira la tendencia","Ningún alimento está prohibido. Mira la media semanal, no el peso de un día: el agua, la sal y la digestión mueven la báscula."]];
 function guia(){$("#c5").innerHTML='<h3 style="margin-top:6px">Cómo hacerlo de forma sana</h3>'+GUIA.map(g=>'<div class="card" style="display:flex;gap:12px;margin-bottom:10px">'+ico(g[0],"var(--ac)",30)+'<div><b>'+g[1]+'</b><p style="margin:4px 0 0" class="hint">'+g[2]+'</p></div></div>').join("")+'<p class="hint">Información general: no sustituye a un profesional sanitario. Fuentes: Lancet Public Health (2025), Harvard Health Publishing, NHS, CDC, Hall et al. (estudio CALERIE), guías del HHS de EE. UU.</p>'}
+const PAGS=[[4,"Inicio","home"],[0,"Chat","chat"],[1,"Hoy","today"],[2,"Información","user"],[6,"Gráficas","chart"],[3,"Alimentos","apple"],[5,"Guía","shield"]];
+function renderMenu(){$("#navm").innerHTML=PAGS.map(x=>'<button id="t'+x[0]+'" onclick="tab('+x[0]+')">'+ico(x[2],"currentColor",22)+x[1]+'</button>').join("")}
+function menu(){const m=$("#menu");m.style.display=m.style.display==="none"?"block":"none"}
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
 function inicio(){
@@ -328,7 +335,7 @@ function inicio(){
  '<p class="hint" style="text-align:center;margin:14px 0 0">Tu objetivo: <b>'+MODOS[D.modo][1]+'</b> · <a href="#" onclick="D.modo=\'\';inicio();return false" style="color:var(--ac)">cambiar</a></p>'+'<button onclick="tab(0)" style="width:100%;margin-top:22px;padding:22px 18px;font:inherit;font-size:16px;text-align:left;color:var(--mu);background:var(--sf);border:2px solid var(--ac);border-radius:20px;display:flex;justify-content:space-between;align-items:center"><span>Cuéntame qué has comido o hecho hoy…</span><span style="color:var(--ac);font-size:22px">→</span></button>'+
  '<div style="text-align:center;margin-top:32px"><button onclick="tab(2)" style="background:none;border:0;color:var(--tx);font:inherit"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 4px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Introducir datos</button></div><div style="text-align:center;margin-top:18px"><button onclick="tab(5)" style="background:none;border:0;color:var(--tx);font:inherit">'+ico("shield","var(--ac)",30)+'<br>Cómo hacerlo de forma sana</button></div>'}
 function hoy(){const d=day(today());
- $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div><p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Datos para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
+ $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div><p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Información para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
  (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
 async function del(t,id){await sb.from(t==="food"?"food_log":"activity_log").delete().eq("id",id);D.log=D.log.filter(e=>!(e.t===t&&e.id===id));hoy()}
 const PASO_Y=0; // 0 = escalones automáticos; pon 10 para escalones de 10 kg
@@ -356,11 +363,11 @@ function setPer(v){PSEL=v;PER=v==="w"?new Date().getDay()+1:+v;datos()}
 function datos(){const p=D.prof,P=periodo(PER);let h7="";
  for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+fmt(d.i)+"</td><td>"+fmt(d.out)+"</td><td>"+(d.bal>0?"+":"")+fmt(d.bal)+"</td></tr>"}
  const ops=[["w","Esta semana (dom–hoy)"],[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(String(o[0])===PSEL?" selected":"")+'>'+o[1]+'</option>').join("");
- $("#c2").innerHTML='<h3>Perfil</h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" onchange="setP()"></label><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" onchange="setP()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" onchange="setP()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" onchange="setP()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" onchange="setP()"></label></div>'+
+ const X='<h3>Perfil</h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" onchange="setP()"></label><label>Peso de hoy (kg)<input id="pw" value="'+(lastW()||"")+'" onchange="setP()"></label><label>Altura (cm)<input id="ph" value="'+esc(p.h)+'" onchange="setP()"></label><label>Edad<input id="pa" value="'+esc(p.a)+'" onchange="setP()"></label><label>Sexo<select id="ps" onchange="setP()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" onchange="setP()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" onchange="setP()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" onchange="setP()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" onchange="setP()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" onchange="setP()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" onchange="setP()"></label></div>'+
  '<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
  '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+fmt(Math.abs(P.def))+' kcal</b></div>'+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
  '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
- '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>'}
+ '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span><p><button class="btn o" onclick="logout()">Cerrar sesión</button></p>';const a=X.indexOf('<h3>Periodo</h3>'),b=X.indexOf('<h3>Importar pesos</h3>');$("#c2").innerHTML=X.slice(0,a)+X.slice(b);$("#c6").innerHTML=X.slice(a,b)}
 async function setP(){
  D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.075;D.goal=num($("#gk").value)||null;
  D.def=$("#df").value===""?null:num($("#df").value);D.defw=$("#dw").value===""?null:num($("#dw").value);D.basal=num($("#bm").value)||null;D.wgoal=num($("#wg").value)||null;D.name=$("#nm").value.trim();if(D.def>600)alert(AVISO);
