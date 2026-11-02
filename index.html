@@ -80,7 +80,7 @@ async function load(){
  D.foods={};D.acts={};
  (q[0].data||[]).sort(own).forEach(r=>D.foods[r.name.toLowerCase()]={id:r.id,k:r.kcal_100g,p:r.portion_g,u:r.portion_name,kp:r.kcal_portion,own:!!r.user_id});
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
- D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
+ D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal,est:!!r.estimated})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));
  const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modo=p.goal_mode||""}
 
@@ -90,7 +90,7 @@ function findFood(n){const w=palabras(n);let b=null,bs=0;for(const name in D.foo
 function findAct(n){for(const a in D.acts)for(const m of D.acts[a].m)if(new RegExp("(^|[^a-z])"+m).test(n))return a;return null}
 function cut(t,re){const m=re.exec(norm(t));if(!m)return[null,t];return[m,t.slice(0,m.index)+" "+t.slice(m.index+m[0].length)]}
 const QW={un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,medio:.5,media:.5};
-const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece que creo eran era tengo aproximadamente otro otra otros otras mas menos copa copas cana canas cucharada cucharadas cucharadita cucharaditas porcion porciones trozo trozos".split(" "));
+const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece que creo eran era tengo aproximadamente otro otra otros otras mas menos copa copas cana canas cucharada cucharadas cucharadita cucharaditas porcion porciones trozo trozos me te se nos tomado bebido cenado desayunado almorzado comiendo tomando".split(" "));
 function parseFood(raw){
  let t=raw.toLowerCase(),per,kc,gr;
  [per,t]=cut(t,/(por|cada|\/)\s*100\s*(g|gr|gramos|ml)\b/);
@@ -123,10 +123,10 @@ async function saveFood(f,name,src){
 const lastW=()=>D.weights.length?D.weights[D.weights.length-1].w:0;
 function bmr(){if(D.basal)return D.basal;const p=D.prof,w=lastW();if(!w||!p.h||!p.a)return 0;return 10*w+6.25*num(p.h)-5*num(p.a)+(p.s==="m"?5:-161)}
 function day(d){let i=0,a=0;D.log.forEach(e=>{if(e.d===d){if(e.t==="food")i+=e.kcal;else a+=e.kcal}});const b=bmr();return{i,a,b,out:b+a,bal:i-b-a}}
-async function add(t,txt,kcal,steps,dia){
- const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;
+async function add(t,txt,kcal,steps,dia,est){
+ const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;if(est)row.estimated=true;
  const{data,error}=await sb.from(t==="food"?"food_log":"activity_log").insert(row).select().single();
- if(error)throw error;D.log.push({id:data.id,d:data.day,t,txt,kcal})}
+ if(error)throw error;D.log.push({id:data.id,d:data.day,t,txt,kcal,est:!!est})}
 async function addW(kg,dia){
  const d=dia||today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
  D.weights=D.weights.filter(x=>x.d!==d);D.weights.push({d,w:kg});D.weights.sort((a,b)=>a.d<b.d?-1:1)}
@@ -173,11 +173,26 @@ function fecha(t){
  if(m){let k=(h0.getDay()-DSEM.indexOf(m[1])+7)%7;if(k===0)k=7;return[rel(k),r]}
  return[null,t]}
 let ULT=null;
+const EST=dia=>{const n=D.log.filter(e=>e.d===dia&&e.est).length;return n?" Incluye "+n+" estimación"+(n>1?"es aproximadas":" aproximada")+".":""};
+function sinRes(n){sb.rpc("registrar_sin_resultado",{t:n}).then(()=>{},()=>{})}
+async function aproxFood(name){
+ const ws=palabras(name).sort((a,b)=>b.length-a.length);
+ for(const q of [name,...ws]){const{data}=await sb.rpc("buscar_genericos",{q});
+  if(data&&data.length){const g=data[0];return{k:+g.kcal_100g,p:g.portion_g,u:g.portion_name,lab:g.name+" (referencia genérica)",src:"valor genérico de «"+g.name+"»"}}}
+ for(const w of ws){const c=await buscar(w);
+  if(c.length>=3){const k=c.map(x=>+x.kcal_100g).sort((a,b)=>a-b);return{k:k[Math.floor(k.length/2)],lo:k[0],hi:k[k.length-1],lab:w+" (media de "+c.length+" productos parecidos)",src:"media de "+c.length+" productos parecidos del catálogo"}}}
+ return null}
+async function estimar(r){
+ const c=await buscar(r.name);let x=null;
+ if(c.length)x={k:+c[0].kcal_100g};else{x=await aproxFood(r.name);sinRes(r.name)}
+ if(!x)return null;
+ const tot=r.G?x.k*r.G/100:(x.p?x.k*x.p/100*r.q:x.k*r.q);
+ return{kcal:tot,desc:(r.G?r.G+" g":r.q+" × "+(x.u||"100 g"))+" de "+r.name+" (aprox.)",name:r.name,est:true,save:false}}
 function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+fmt(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
 function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
  if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Información para calcular cuántas te quedan.";
  const q=m.l-d.i;
- return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."+(d.b&&m.l<d.b?" Ojo: ese límite está por debajo de tu metabolismo basal ("+fmt(d.b)+"); no se recomienda comer tan poco.":"")}
+ return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."+(d.b&&m.l<d.b?" Ojo: ese límite está por debajo de tu metabolismo basal ("+fmt(d.b)+"); no se recomienda comer tan poco.":"")+EST(dia)}
 async function setCol(col,key,v){D[key]=v;await sb.from("profiles").upsert({user_id:uid,[col]:v})}
 const setGoal=g=>setCol("goal_kcal","goal",g);
 function rep(t,re,fn){let m;while((m=re.exec(norm(t)))){t=t.slice(0,m.index)+fn(m)+t.slice(m.index+m[0].length)}return t}
@@ -215,10 +230,14 @@ async function consulta(s){
  for(const it of q2.split(/\s*(?:[,;?!]|\.(?!\d)|\scon\s|\sy\s|\+)\s*/).filter(x=>x.trim())){
   if(!palabras(it).length)continue;
   const r=parseFood(it);
-  if(r.err||r.unknown){if(palabras(it).length<=2)L.push("No conozco «"+(r.name||it.trim())+"». Dime sus calorías, por ejemplo: «"+(r.name||"alimento")+" 120 kcal».");continue}
+  if(r.err||r.unknown){
+   const e=r.unknown&&palabras(it).length<=3?await estimar(r):null;
+   if(e){tot+=e.kcal;it2.push(e);L.push("• "+e.desc+" → ≈"+fmt(e.kcal)+" kcal");continue}
+   if(palabras(it).length<=2)L.push("No conozco «"+(r.name||it.trim())+"». Dime sus calorías, por ejemplo: «"+(r.name||"alimento")+" 120 kcal».");
+   continue}
   tot+=r.kcal;it2.push(r);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
  D.foods=JSON.parse(bak);ULT=it2.length?{items:it2,dia}:null;
- L.push("Total: "+fmt(tot)+" kcal (no guardado; di «añade eso» para registrarlo).");
+ L.push("Total: "+fmt(tot)+" kcal"+(it2.some(x=>x.est)?" (incluye valores aproximados)":"")+" · no guardado; di «añade eso» para registrarlo.");
  const d=day(dia),m=metaDia(d),pr=d.i+tot-d.out;
  if(d.out)L.push("Previsión: llevas "+fmt(d.i)+" + esto "+fmt(tot)+" = "+fmt(d.i+tot)+" kcal. Gasto estimado "+fmt(d.out)+" → balance previsto "+(pr>0?"+":"")+fmt(pr)+(D.def!=null?" (objetivo −"+fmt(D.def)+")":"")+".");
  if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+fmt(m.l-d.i-tot):"Te pasarías en "+fmt(d.i+tot-m.l))+" kcal para "+m.t+".");
@@ -236,7 +255,7 @@ async function handle(text){
  const n0=norm(s);
  if(ULT&&/\b(anade|apunta|registra|anota|guarda|agrega)\b.*\b(eso|esto|todo|lo anterior)\b/.test(n0)){
   const U=ULT;ULT=null;const L=["Registrado:"];
-  for(const r of U.items){if(r.save){D.foods[r.name]=r.f;await saveFood(r.f,r.name)}await add("food",r.desc,r.kcal,null,U.dia);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
+  for(const r of U.items){if(r.save){D.foods[r.name]=r.f;await saveFood(r.f,r.name)}await add("food",r.desc,r.kcal,null,U.dia,r.est);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
   const k=n0.search(/\s(y|ademas)\s/),rest=k>0?s.slice(k).replace(/^\s*(y|ademas)\s+/i,""):"";
   if(rest.trim())return L.concat(await handle(rest));
   return L.concat([resumen(U.dia)])}
@@ -271,6 +290,9 @@ async function handle(text){
   if(r.unknown){
    if(!OPTS){const res=await buscar(r.name);
     if(res.length){OPTS={items:res,pend:{...r,dia:cur}};out.push("No tengo «"+r.name+"» en tus alimentos. En el catálogo he encontrado esto, ¿cuál es?");continue}}
+   if(!OPTS){const ap=await aproxFood(r.name);sinRes(r.name);
+    if(ap){OPTS={items:[{name:"Usar aproximado: "+ap.lab+" ≈ "+fmt(ap.k)+" kcal/100 g"+(ap.hi?" (rango "+fmt(ap.lo)+"–"+fmt(ap.hi)+")":""),kcal_100g:ap.k,portion_g:ap.p,portion_name:ap.u,aprox:true}],pend:{...r,dia:cur}};
+     out.push("No tengo «"+r.name+"» exacto, ni la cantidad precisa. Si quieres, te doy un aproximado ("+ap.src+"; puede variar según la marca). "+(r.G?"":(ap.p?"Si no indicas cantidad, supondré 1 "+ap.u+" ("+ap.p+").":"Si no indicas cantidad, supondré 100 g."))+" ¿Lo uso?");continue}}
    out.push("No conozco «"+r.name+"». Dime sus calorías, por ejemplo: «"+r.name+" 120 kcal por 100 g» o «"+r.name+" 250 kcal».");continue}
   if(r.save)await saveFood(r.f,r.name);
   await add("food",r.desc,r.kcal,null,cur);out.push(r.desc+" → "+fmt(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
@@ -279,7 +301,7 @@ async function handle(text){
  return out}
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
-function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(m.t)+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+esc(x.name)+' · '+fmt(x.kcal_100g)+' kcal/100 g</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguno</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
+function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(m.t)+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+' · '+fmt(x.kcal_100g)+' kcal/100 g')+'</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguna: dar mis calorías</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
 async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";msgs.push({r:"u",t});
  try{const L=await handle(t);msgs.push({r:"b",t:L.join("\n"),opts:OPTS})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
 $("#in").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
@@ -288,12 +310,18 @@ async function pick(mi,i){
  if(i<0){msgs.push({r:"b",t:"De acuerdo. Dime sus calorías, por ejemplo: «"+o.pend.name+" 120 kcal por 100 g»."});draw();return}
  const x=o.items[i],r=o.pend;
  try{
+  if(x.aprox){
+   const k=+x.kcal_100g,total=r.G?k*r.G/100:(x.portion_g?k*x.portion_g/100*r.q:k*r.q);
+   const desc=r.G?r.G+" g de "+r.name+" (aprox.)":r.q+" × "+(x.portion_name||"100 g")+" de "+r.name+" (aprox.)";
+   await add("food",desc,total,null,r.dia,true);
+   msgs.push({r:"b",t:desc+" → ≈"+fmt(total)+" kcal (estimado; no se guarda como alimento)\n"+resumen(r.dia||today())})
+  }else{
   const f=D.foods[r.name]={id:null,k:+x.kcal_100g,p:null,u:"ración",kp:null,own:true};
   const total=r.G?f.k*r.G/100:f.k*r.q;
   const desc=r.G?r.G+" g de "+r.name:r.q+" × 100 g de "+r.name;
   await saveFood(f,r.name,"mercadona");await add("food",desc,total,null,r.dia);
   const d=day(today());
-  msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})
+  msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})}
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
 function tab(n){$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
@@ -340,7 +368,7 @@ function inicio(){
  '<div style="text-align:center;margin-top:32px"><button onclick="tab(2)" style="background:none;border:0;color:var(--tx);font:inherit"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 4px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Introducir datos</button></div><div style="text-align:center;margin-top:18px"><button onclick="tab(5)" style="background:none;border:0;color:var(--tx);font:inherit">'+ico("shield","var(--ac)",30)+'<br>Cómo hacerlo de forma sana</button></div>'}
 function hoy(){const d=day(today());
  $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div>'+enlaceInfo()+'<p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Información para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
- (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
+ (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':'')+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
 async function del(t,id){await sb.from(t==="food"?"food_log":"activity_log").delete().eq("id",id);D.log=D.log.filter(e=>!(e.t===t&&e.id===id));hoy()}
 const PASO_Y=0; // 0 = escalones automáticos; pon 10 para escalones de 10 kg
 let CH=[];
