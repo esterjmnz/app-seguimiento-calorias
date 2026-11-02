@@ -39,9 +39,9 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 <input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw0" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="current-password">
 <button class="btn" onclick="login(false)">Entrar</button><button class="btn o" onclick="login(true)">Crear cuenta</button><div id="aerr" class="hint" style="color:var(--bad)"></div></div>
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
-<nav><button id="t0" class="on" onclick="tab(0)">Chat</button><button id="t1" onclick="tab(1)">Hoy</button><button id="t2" onclick="tab(2)">Datos</button></nav>
+<nav><button id="t0" class="on" onclick="tab(0)">Chat</button><button id="t1" onclick="tab(1)">Hoy</button><button id="t2" onclick="tab(2)">Datos</button><button id="t3" onclick="tab(3)">Alimentos</button></nav>
 <section id="c0" style="display:flex"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off"><button class="btn" onclick="send()">Enviar</button></div></section>
-<main id="c1" style="display:none"></main><main id="c2" style="display:none"></main></div>
+<main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script>
@@ -78,7 +78,8 @@ async function load(){
  const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.04)}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
-function findFood(n){let b=null;for(const name in D.foods){const s=norm(name).replace(/(es|s)$/,"");if(new RegExp("(^|[^a-z])"+s).test(n)&&(!b||s.length>b.s.length))b={name,s}}return b?b.name:null}
+const palabras=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w&&!STOP.has(w));
+function findFood(n){const w=palabras(n);let b=null,bs=0;for(const name in D.foods){const t=palabras(name).map(x=>x.replace(/(es|s)$/,""));if(!t.length)continue;if(t.every(x=>w.some(y=>y.startsWith(x)))){const sc=t.length*100+t.join("").length;if(sc>bs){bs=sc;b=name}}}return b}
 function findAct(n){for(const a in D.acts)for(const m of D.acts[a].m)if(new RegExp("(^|[^a-z])"+m).test(n))return a;return null}
 function cut(t,re){const m=re.exec(norm(t));if(!m)return[null,t];return[m,t.slice(0,m.index)+" "+t.slice(m.index+m[0].length)]}
 const QW={un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,medio:.5,media:.5};
@@ -92,7 +93,7 @@ function parseFood(raw){
  let q=1;const qi=toks.findIndex(x=>QW[norm(x)]!=null||/^\d+([.,]\d+)?$/.test(x));
  if(qi>=0){q=QW[norm(toks[qi])]??num(toks[qi]);toks.splice(qi,1)}
  const nm=toks.filter(x=>!STOP.has(norm(x))).join(" ");
- const name=findFood(norm(raw))||nm;
+ const name=kc?(nm||findFood(norm(raw))):(findFood(norm(raw))||nm);
  if(!name)return{err:"No he entendido qué alimento es."};
  let f=D.foods[name],total,desc,learned=false;
  if(kc){
@@ -115,23 +116,23 @@ async function saveFood(f,name,src){
 const lastW=()=>D.weights.length?D.weights[D.weights.length-1].w:0;
 function bmr(){const p=D.prof,w=lastW();if(!w||!p.h||!p.a)return 0;return 10*w+6.25*num(p.h)-5*num(p.a)+(p.s==="m"?5:-161)}
 function day(d){let i=0,a=0;D.log.forEach(e=>{if(e.d===d){if(e.t==="food")i+=e.kcal;else a+=e.kcal}});const b=bmr();return{i,a,b,out:b+a,bal:i-b-a}}
-async function add(t,txt,kcal,steps){
- const row={description:txt,kcal,day:today()};if(steps)row.steps=steps;
+async function add(t,txt,kcal,steps,dia){
+ const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;
  const{data,error}=await sb.from(t==="food"?"food_log":"activity_log").insert(row).select().single();
  if(error)throw error;D.log.push({id:data.id,d:data.day,t,txt,kcal})}
-async function addW(kg){
- const d=today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
+async function addW(kg,dia){
+ const d=dia||today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
  D.weights=D.weights.filter(x=>x.d!==d);D.weights.push({d,w:kg});D.weights.sort((a,b)=>a.d<b.d?-1:1)}
 const SPLIT=/\s*(?:,(?!\d)|;|\sy\s|\+)\s*/;
 const DELV=/\b(quita|quitame|quitar|quitalo|elimina|eliminar|eliminalo|borra|borrame|borrar|borralo|anula|anular|cancela|cancelar|deshaz|deshacer)\b/;
 const DSTOP=new Set("el la los las lo de del que he hemos puesto comido comi tome bebi por favor mi me un una ultimo ultima registro registrado entrada y".split(" "));
-async function quitar(n){
+async function quitar(n,dia){
  const words=n.replace(DELV," ").replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(w=>w&&!DSTOP.has(w));
- const hoyL=D.log.filter(e=>e.d===today()).reverse();
- if(!hoyL.length)return"Hoy no hay nada registrado que quitar.";
+ const hoyL=D.log.filter(e=>e.d===dia).reverse();
+ if(!hoyL.length)return"No hay nada registrado ese día que quitar.";
  const ws=words.map(w=>w.replace(/(es|s)$/,"")).filter(w=>w.length>1);
  const e=ws.length?(hoyL.find(x=>ws.every(w=>norm(x.txt).includes(w)))||hoyL.find(x=>ws.some(w=>norm(x.txt).includes(w)))):hoyL[0];
- if(!e)return"No he encontrado «"+words.join(" ")+"» en lo de hoy.";
+ if(!e)return"No he encontrado «"+words.join(" ")+"» en ese día.";
  await sb.from(e.t==="food"?"food_log":"activity_log").delete().eq("id",e.id);
  D.log=D.log.filter(x=>!(x.t===e.t&&x.id===e.id));
  return"Quitado: "+e.txt+" ("+fmt(e.kcal)+" kcal).";
@@ -144,34 +145,57 @@ function fragmentos(s){
   if(out.length&&(/(gast|quem|consum)/.test(n)||suelto)&&KC.test(n)&&/(ejercicio|hora|min|entren|\bhice\b|\bhecho\b)/.test(p)&&!KC.test(p))out[out.length-1]+=" "+x;
   else out.push(x)}
  return out}
+const MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DSEM=["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];
+const iso=d=>d.toLocaleDateString("sv");
+function explicita(d,mes,anio){const x=new Date();x.setHours(12,0,0,0);x.setFullYear(anio||x.getFullYear(),mes,d);if(!anio&&x>new Date())x.setFullYear(x.getFullYear()-1);return iso(x)}
+function fecha(t){
+ let m,r;const h0=new Date();h0.setHours(12,0,0,0);
+ const rel=n=>{const d=new Date(h0);d.setDate(d.getDate()-n);return iso(d)};
+ [m,r]=cut(t,/\bhoy\b/);if(m)return[rel(0),r];
+ [m,r]=cut(t,/\b(anteayer|antes de ayer)\b/);if(m)return[rel(2),r];
+ [m,r]=cut(t,/\b(ayer|anoche)\b/);if(m)return[rel(1),r];
+ [m,r]=cut(t,/\bhace (\d{1,2}) dias?\b/);if(m)return[rel(+m[1]),r];
+ [m,r]=cut(t,/\b(?:el )?(?:dia )?(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?: de (\d{4}))?\b/);
+ if(m)return[explicita(+m[1],MESES.indexOf(m[2]),m[3]?+m[3]:null),r];
+ [m,r]=cut(t,/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
+ if(m)return[explicita(+m[1],+m[2]-1,m[3]?(+m[3]<100?2000+ +m[3]:+m[3]):null),r];
+ [m,r]=cut(t,/\bel dia (\d{1,2})\b/);
+ if(m){const d=new Date(h0);d.setDate(+m[1]);if(d>h0)d.setMonth(d.getMonth()-1);return[iso(d),r]}
+ [m,r]=cut(t,/\b(?:el )?(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/);
+ if(m){let k=(h0.getDay()-DSEM.indexOf(m[1])+7)%7;if(k===0)k=7;return[rel(k),r]}
+ return[null,t]}
 let OPTS=null;
 async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});return error?[]:(data||[]).filter(x=>x.kcal_100g!=null)}
 async function handle(text){
  OPTS=null;const s=text.replace(/hora y media/gi,"1,5 horas"),out=[];
- if(DELV.test(norm(s)))return[await quitar(norm(s))];
- const wm=norm(s).match(/(he pesado|pese|peso|mi peso)\s*(?:de|es|:)?\s*(\d{2,3}(?:[.,]\d+)?)/);
- if(wm){await addW(num(wm[2]));return["Peso registrado: "+f1(num(wm[2]))+" kg."]}
- for(const it of fragmentos(s)){
-  if(!it.trim())continue;const n=norm(it);let m;
-  if(m=n.match(/(\d[\d.]*)\s*pasos?/)){const st=parseInt(m[1].replace(/\./g,"")),c=st*D.stepK;await add("act",fmt(st)+" pasos",c,st);out.push("Pasos: "+fmt(st)+" → "+fmt(c)+" kcal gastadas");continue}
+ if(DELV.test(norm(s))){const[dq,sq]=fecha(norm(s));return[await quitar(sq,dq||today())]}
+ const[wd,sw]=fecha(s),wm=norm(sw).match(/(he pesado|pese|peso|mi peso)\s*(?:de|es|:)?\s*(\d{2,3}(?:[.,]\d+)?)/);
+ if(wm){await addW(num(wm[2]),wd||today());return["Peso registrado: "+f1(num(wm[2]))+" kg"+(wd&&wd!==today()?" ("+wd+")":"")+"."]}
+ const fr=fragmentos(s).map(x=>fecha(x)),ds=new Set(fr.map(x=>x[0]).filter(Boolean));
+ let cur=ds.size===1?[...ds][0]:today();
+ for(const[fd,it] of fr){
+  if(ds.size>1&&fd)cur=fd;
+  if(!it.trim())continue;const n=norm(it);let m;const sf=cur!==today()?" ("+cur.slice(5)+")":"";
+  if(m=n.match(/(\d[\d.]*)\s*pasos?/)){const st=parseInt(m[1].replace(/\./g,"")),c=st*D.stepK;await add("act",fmt(st)+" pasos",c,st,cur);out.push("Pasos: "+fmt(st)+" → "+fmt(c)+" kcal gastadas"+sf);continue}
   const act=findAct(n),kcm=n.match(/(\d+(?:[.,]\d+)?)\s*(?:kcal|calorias?|cal)\b/);
   if(act||(kcm&&/(quem|gast|entren|ejercicio)/.test(n))){
    let c,desc,h=null;
    if(m=n.match(/(\d+(?:[.,]\d+)?)\s*(?:h|hora|horas)\b/))h=num(m[1]);else if(m=n.match(/(\d+)\s*(?:min|minutos)\b/))h=num(m[1])/60;else if(/media hora/.test(n))h=.5;
    if(kcm){c=num(kcm[1]);desc=(act||"ejercicio")+(h?" "+f1(h)+" h":"")}
    else{h=h||1;c=D.acts[act].k*h;desc=act+" "+f1(h)+" h"}
-   await add("act",desc,c);out.push("Ejercicio: "+desc+" → "+fmt(c)+" kcal gastadas");continue}
+   await add("act",desc,c,null,cur);out.push("Ejercicio: "+desc+" → "+fmt(c)+" kcal gastadas"+sf);continue}
   const r=parseFood(it);
   if(r.err){out.push(r.err);continue}
   if(r.unknown){
    if(!OPTS){const res=await buscar(r.name);
-    if(res.length){OPTS={items:res,pend:r};out.push("No tengo «"+r.name+"» en tus alimentos. En el catálogo he encontrado esto, ¿cuál es?");continue}}
+    if(res.length){OPTS={items:res,pend:{...r,dia:cur}};out.push("No tengo «"+r.name+"» en tus alimentos. En el catálogo he encontrado esto, ¿cuál es?");continue}}
    out.push("No conozco «"+r.name+"». Dime sus calorías, por ejemplo: «"+r.name+" 120 kcal por 100 g» o «"+r.name+" 250 kcal».");continue}
   if(r.save)await saveFood(r.f,r.name);
-  await add("food",r.desc,r.kcal);out.push(r.desc+" → "+fmt(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":""));
+  await add("food",r.desc,r.kcal,null,cur);out.push(r.desc+" → "+fmt(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
  }
- if(!OPTS){const d=day(today());
-  out.push("Hoy: "+fmt(d.i)+" kcal ingeridas"+(d.b?" · balance "+(d.bal>0?"+":"")+fmt(d.bal)+" kcal":"")+".")}
+ if(!OPTS){const d=day(cur);
+  out.push((cur===today()?"Hoy":cur.slice(5))+": "+fmt(d.i)+" kcal ingeridas"+(d.b?" · balance "+(d.bal>0?"+":"")+fmt(d.bal)+" kcal":"")+".")}
  return out}
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
@@ -187,12 +211,18 @@ async function pick(mi,i){
   const f=D.foods[r.name]={id:null,k:+x.kcal_100g,p:null,u:"ración",kp:null,own:true};
   const total=r.G?f.k*r.G/100:f.k*r.q;
   const desc=r.G?r.G+" g de "+r.name:r.q+" × 100 g de "+r.name;
-  await saveFood(f,r.name,"mercadona");await add("food",desc,total);
+  await saveFood(f,r.name,"mercadona");await add("food",desc,total,null,r.dia);
   const d=day(today());
   msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\nHoy: "+fmt(d.i)+" kcal ingeridas."})
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){for(let i=0;i<3;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos()}
+function tab(n){for(let i=0;i<4;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos();if(n===3)misAlimentos()}
+let MIS=[];
+function misAlimentos(){
+ MIS=Object.keys(D.foods).filter(n=>D.foods[n].own).sort();
+ $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':fmt(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
+async function editF(i,c,v){const f=D.foods[MIS[i]];f[c]=v===""?null:num(v);if(f.id)await sb.from("foods").update({kcal_100g:f.k,portion_g:f.p,kcal_portion:f.kp}).eq("id",f.id);misAlimentos()}
+async function delF(i){const n=MIS[i],f=D.foods[n];if(f.id)await sb.from("foods").delete().eq("id",f.id);delete D.foods[n];misAlimentos()}
 function hoy(){const d=day(today());
  $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div><p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Datos para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
  (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
