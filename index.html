@@ -32,6 +32,8 @@ h3{margin:18px 0 8px;font-size:15px}
 .g label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px}
 table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;font-size:13px}
 #auth{margin:auto 0;padding:24px;display:flex;flex-direction:column;gap:10px}
+.opts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.opts button{text-align:left;font:inherit;font-size:13px;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:8px}
 </style></head><body>
 <div id="auth"><h2 style="margin:0">Calorías</h2><p class="hint" style="margin:0">Entra o crea tu cuenta.</p>
 <input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw0" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="current-password">
@@ -100,14 +102,14 @@ function parseFood(raw){
   else if(G){f.k=K/G*100;f.p=G;total=K;desc=G+" g de "+name}
   else{f.kp=K;total=K*q;desc=q+" × "+name;if(f.k!=null&&f.p)f.k=K/f.p*100}
  }else{
-  if(!f)return{err:"No conozco «"+name+"». Dime sus calorías, por ejemplo: «"+name+" 120 kcal por 100 g» o «"+name+" 250 kcal»."};
+  if(!f)return{unknown:true,name,q,G:gr?num(gr[1]):null};
   if(gr&&f.k!=null){const G=num(gr[1]);total=f.k*G/100;desc=G+" g de "+name}
   else{total=unitK(f)*q;desc=(q!==1?q+" × ":"1 ")+(f.u||"ración")+" de "+name+(f.p?" (~"+Math.round(f.p*q)+" g)":"")}
  }
  return{kcal:total,desc,learned,name,f,save:!!kc};
 }
-async function saveFood(f,name){
- const r={name,kcal_100g:f.k,portion_g:f.p,portion_name:f.u||"ración",kcal_portion:f.kp,source:"chat"};
+async function saveFood(f,name,src){
+ const r={name,kcal_100g:f.k,portion_g:f.p,portion_name:f.u||"ración",kcal_portion:f.kp,source:src||"chat"};
  if(f.id)await sb.from("foods").update(r).eq("id",f.id);
  else{const{data}=await sb.from("foods").insert({...r,user_id:uid}).select().single();if(data)f.id=data.id}}
 const lastW=()=>D.weights.length?D.weights[D.weights.length-1].w:0;
@@ -121,8 +123,10 @@ async function addW(kg){
  const d=today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
  D.weights=D.weights.filter(x=>x.d!==d);D.weights.push({d,w:kg});D.weights.sort((a,b)=>a.d<b.d?-1:1)}
 const SPLIT=/\s*(?:,(?!\d)|;|\sy\s|\+)\s*/;
+let OPTS=null;
+async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});return error?[]:(data||[]).filter(x=>x.kcal_100g!=null)}
 async function handle(text){
- const s=text.replace(/hora y media/gi,"1,5 horas"),out=[];
+ OPTS=null;const s=text.replace(/hora y media/gi,"1,5 horas"),out=[];
  const wm=norm(s).match(/(he pesado|pese|peso|mi peso)\s*(?:de|es|:)?\s*(\d{2,3}(?:[.,]\d+)?)/);
  if(wm){await addW(num(wm[2]));return["Peso registrado: "+f1(num(wm[2]))+" kg."]}
  for(const it of s.split(SPLIT)){
@@ -136,18 +140,35 @@ async function handle(text){
    await add("act",desc,c);out.push("Ejercicio: "+desc+" → "+fmt(c)+" kcal gastadas");continue}
   const r=parseFood(it);
   if(r.err){out.push(r.err);continue}
+  if(r.unknown){
+   if(!OPTS){const res=await buscar(r.name);
+    if(res.length){OPTS={items:res,pend:r};out.push("No tengo «"+r.name+"» en tus alimentos. En el catálogo he encontrado esto, ¿cuál es?");continue}}
+   out.push("No conozco «"+r.name+"». Dime sus calorías, por ejemplo: «"+r.name+" 120 kcal por 100 g» o «"+r.name+" 250 kcal».");continue}
   if(r.save)await saveFood(r.f,r.name);
   await add("food",r.desc,r.kcal);out.push(r.desc+" → "+fmt(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":""));
  }
- const d=day(today());
- out.push("Hoy: "+fmt(d.i)+" kcal ingeridas"+(d.b?" · balance "+(d.bal>0?"+":"")+fmt(d.bal)+" kcal":"")+".");
+ if(!OPTS){const d=day(today());
+  out.push("Hoy: "+fmt(d.i)+" kcal ingeridas"+(d.b?" · balance "+(d.bal>0?"+":"")+fmt(d.bal)+" kcal":"")+".")}
  return out}
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
-function draw(){const e=$("#msgs");e.innerHTML=msgs.map(m=>'<div class="m '+m.r+'">'+esc(m.t)+"</div>").join("");e.scrollTop=e.scrollHeight}
+function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(m.t)+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+esc(x.name)+' · '+fmt(x.kcal_100g)+' kcal/100 g</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguno</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
 async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";msgs.push({r:"u",t});
- try{msgs.push({r:"b",t:(await handle(t)).join("\n")})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
+ try{const L=await handle(t);msgs.push({r:"b",t:L.join("\n"),opts:OPTS})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
 $("#in").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+async function pick(mi,i){
+ const m=msgs[mi],o=m.opts;if(!o)return;m.opts=null;
+ if(i<0){msgs.push({r:"b",t:"De acuerdo. Dime sus calorías, por ejemplo: «"+o.pend.name+" 120 kcal por 100 g»."});draw();return}
+ const x=o.items[i],r=o.pend;
+ try{
+  const f=D.foods[r.name]={id:null,k:+x.kcal_100g,p:null,u:"ración",kp:null,own:true};
+  const total=r.G?f.k*r.G/100:f.k*r.q;
+  const desc=r.G?r.G+" g de "+r.name:r.q+" × 100 g de "+r.name;
+  await saveFood(f,r.name,"mercadona");await add("food",desc,total);
+  const d=day(today());
+  msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\nHoy: "+fmt(d.i)+" kcal ingeridas."})
+ }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
+ draw()}
 function tab(n){for(let i=0;i<3;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2)datos()}
 function hoy(){const d=day(today());
  $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div><p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Datos para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
