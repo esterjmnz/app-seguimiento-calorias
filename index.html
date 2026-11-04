@@ -41,9 +41,11 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 .opts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .opts button{text-align:left;font:inherit;font-size:13px;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:8px}
 </style></head><body>
+<div id="priv" style="display:none;position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding:16px"></div>
+<div id="cons" style="display:none;position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;padding:16px"></div>
 <div id="auth"><div style="display:flex;align-items:center;gap:12px;color:var(--ac)"><svg width="52" height="52" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.8 18.5 C1.9 16.8 2 13.5 3.4 13.5 C4.8 13.5 4.2 21.5 5.6 21.5 C7 21.5 6.4 10.5 7.6 10.5 C8.9 10.5 8.6 22.5 9.8 22.5 C10.8 22.5 10.4 17 11.5 16.6 L19 16.4 C20.2 16.3 20 10.5 21.2 10.5 C22.4 10.5 22 22.5 23.2 22.5 C24.4 22.5 24.6 17 24.6 14 L24.6 4 C26 3 27.5 5.5 29.5 4.5 C28 6 26.5 7.5 24.6 7"/></svg><h2 style="margin:0;color:var(--tx)">FitnessJourney</h2></div><p class="hint" style="margin:0">Entra o crea tu cuenta.</p>
 <input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw0" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="current-password">
-<button class="btn" onclick="login(false)">Entrar</button><button class="btn o" onclick="login(true)">Crear cuenta</button><div id="aerr" class="hint" style="color:var(--bad)"></div></div>
+<button class="btn" onclick="login(false)">Entrar</button><button class="btn o" onclick="login(true)">Crear cuenta</button><div id="aerr" class="hint" style="color:var(--bad)"></div><p class="hint" style="text-align:center"><a href="#" onclick="verPolitica();return false" style="color:var(--ac)">Política de privacidad</a></p></div>
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
 <header id="top"><div style="display:flex;align-items:center;gap:10px"><button onclick="tab(0)" aria-label="Ir al chat" style="background:none;border:0;color:var(--ac);padding:4px;display:flex"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></button><span style="width:1px;height:24px;background:var(--bd)"></span><b id="ptitle" style="font-size:17px;display:flex;align-items:center;gap:8px">FitnessJourney</b></div><div style="display:flex;align-items:center"><button id="ojo" onclick="alternaNum()" aria-label="Ocultar números" style="background:none;border:0;color:var(--tx);padding:6px;display:none"></button><button id="mbtn" onclick="menu()" aria-label="Menú"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div></header>
 <div id="menu" style="display:none" onclick="this.style.display='none'"><nav id="navm" onclick="event.stopPropagation()"></nav></div>
@@ -71,18 +73,19 @@ async function login(up){
  if(error){$("#aerr").textContent=error.message;return}
  if(!data.session){$("#aerr").textContent="Revisa tu email para confirmar la cuenta.";return}
  start(data.session.user)}
-async function start(u){uid=u.id;await load();$("#auth").style.display="none";$("#app").style.display="flex";draw();renderMenu();tab(4)}
+async function start(u){uid=u.id;await load();if(!consentOk()){pideConsent();return}mostrarApp()}
+function mostrarApp(){$("#cons").style.display="none";$("#auth").style.display="none";$("#app").style.display="flex";draw();renderMenu();tab(4)}
 sb.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
 async function logout(){await sb.auth.signOut();location.reload()}
 
 async function load(){
- const s=daysAgo(90),q=await Promise.all([sb.from("foods").select("*"),sb.from("activities").select("*"),sb.from("food_log").select("*").gte("day",s),sb.from("activity_log").select("*").gte("day",s),sb.from("weights").select("*").order("day"),sb.from("profiles").select("*").maybeSingle(),sb.from("descansos").select("day")]);
+ const s=daysAgo(90),q=await Promise.all([sb.from("foods").select("*"),sb.from("activities").select("*"),sb.from("food_log").select("*").gte("day",s),sb.from("activity_log").select("*").gte("day",s),sb.from("weights").select("*").order("day"),sb.from("profiles").select("*").maybeSingle(),sb.from("descansos").select("day"),sb.from("reglas").select("*"),sb.from("consentimientos").select("*").order("fecha",{ascending:true})]);
  const own=(a,b)=>(a.user_id?1:0)-(b.user_id?1:0);
  D.foods={};D.acts={};
  (q[0].data||[]).sort(own).forEach(r=>D.foods[r.name.toLowerCase()]={id:r.id,k:r.kcal_100g,p:r.portion_g,u:r.portion_name,kp:r.kcal_portion,g:r.grupo,own:!!r.user_id});
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
  D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal,est:!!r.estimated,g:r.grupo,rc:r.raciones})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal,tp:r.tipo,mn:r.minutos,st:r.steps})));
- D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));D.desc=new Set((q[6].data||[]).map(r=>r.day));
+ D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));D.desc=new Set((q[6].data||[]).map(r=>r.day));D.reglas=q[7].data||[];D.consent={};(q[8].data||[]).forEach(r=>{D.consent[r.tipo]=r});
  const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modoDesde=p.modo_desde||"";D.creado=p.creado_en||"";D.modo=p.goal_mode||"";D.nivel=p.modo||"";D.subidaOf=!!p.subida_ofrecida;D.tono=p.tono||"";D.motivo=p.motivo||"";D.cuest=p.cuestionario||{};D.riesgo=!!p.riesgo_bienestar}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
@@ -255,6 +258,7 @@ async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});r
 async function handle(text){
  OPTS=null;const s=pal2num(text).replace(/hora y media/gi,"1,5 horas"),out=[];
  const n0=norm(s);
+ if(/(recomend|consejo|que puedo mejorar|como mejorar|ideas)/.test(n0))return[recoTxt()];
  if(!modoNum()){
   if(/(estoy pensando|pensando en|voy a (comer|cenar|tomar|desayunar|almorzar)|podria (comer|cenar|tomar)|puedo (comer|cenar|tomar)|me apetece|me gustaria (tomar|comer|cenar)|cuantas (calorias|kcal)|encaja)/.test(n0))return["En el modo Hábitos no mostramos calorías. Cuando lo comas, cuéntamelo y lo anoto como una ración. Si en algún momento quieres ver números, puedes cambiar de modo desde tu perfil. 💚"];
   if(/(acumulado|resumen|balance).*semana|semana.*(acumulado|balance)/.test(n0))return[balanceTxt()]}
@@ -372,17 +376,16 @@ const enlaceInfo=()=>'<p style="margin:6px 0 12px"><a href="#" onclick="tab(2);r
 const LOGO=(z,c)=>'<svg width="'+z+'" height="'+z+'" viewBox="0 0 32 32" fill="none" stroke="'+(c||"currentColor")+'" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.8 18.5 C1.9 16.8 2 13.5 3.4 13.5 C4.8 13.5 4.2 21.5 5.6 21.5 C7 21.5 6.4 10.5 7.6 10.5 C8.9 10.5 8.6 22.5 9.8 22.5 C10.8 22.5 10.4 17 11.5 16.6 L19 16.4 C20.2 16.3 20 10.5 21.2 10.5 C22.4 10.5 22 22.5 23.2 22.5 C24.4 22.5 24.6 17 24.6 14 L24.6 4 C26 3 27.5 5.5 29.5 4.5 C28 6 26.5 7.5 24.6 7"/></svg>';
 // ---------- CUESTIONARIO INICIAL Y MODOS ----------
 const NIV={habitos:{e:"🎒",n:"Hábitos",d:"Registra comidas con raciones aproximadas, ejercicio, pasos y peso. Sin calorías ni números: solo constancia y buenas rutinas."},guiado:{e:"🧭",n:"Guiado",d:"Ves tus calorías y la app te propone un objetivo suave y sostenible según tu día a día."},autonomo:{e:"🥾",n:"Autónomo",d:"Tú fijas tu objetivo. Ves basal, gasto, déficit acumulado y gráficas."},pro:{e:"🏔️",n:"Pro",d:"Todo lo de Autónomo, más macros (proteína, hidratos y grasa) y recomendaciones concretas."}};
-const GUARDAR_BIENESTAR=true; // true = guarda también las respuestas de bienestar (el usuario puede borrarlas desde Perfil); false = solo marcas mínimas
 const O=(...a)=>a.map(x=>x.split("|"));
 const TITQ={comun:"Cuéntanos sobre ti",bienestar:"Tu bienestar",modo:"Elige cómo empezar",contexto:"Tu día a día",pro:"Tu entrenamiento"};
 // cada campo: [clave, pregunta, tipo (t texto, n número, s lista, x texto largo), obligatorio, opciones o rango]
 const QS={
- comun:[["nombre","Nombre","t",1],["tono","¿Cómo prefieres que te hablemos?","s",1,O("cercano|Cercano y cálido","directo|Directo y claro","motivador|Motivador","tranquilo|Tranquilo y sin presión")],["edad","Edad","n",1,[10,110]],["sexo","Sexo","s",1,O("f|Mujer","m|Hombre")],["altura","Altura (cm)","n",1,[100,250]],["peso","Peso actual (kg)","n",1,[20,400]],["objetivo","¿Qué quieres conseguir?","s",1,O("perder|Perder grasa","mantener|Mantenerme","ganar|Ganar masa")],["motivo","¿Qué te anima a empezar?","s",1,O("salud|Cuidar mi salud","energia|Tener más energía","estetica|Sentirme mejor con mi cuerpo","deporte|Mejorar en el deporte","otro|Otro motivo")]],
+ comun:[["nombre","Nombre","t",1],["tono","¿Cómo prefieres que te hablemos?","s",1,O("cercano|Cercano y cálido","directo|Directo y claro","motivador|Motivador","tranquilo|Tranquilo y sin presión")],["edad","Edad","n",1,[14,110]],["sexo","Sexo","s",1,O("f|Mujer","m|Hombre")],["altura","Altura (cm)","n",1,[100,250]],["peso","Peso actual (kg)","n",1,[20,400]],["objetivo","¿Qué quieres conseguir?","s",1,O("perder|Perder grasa","mantener|Mantenerme","ganar|Ganar masa")],["motivo","¿Qué te anima a empezar?","s",1,O("salud|Cuidar mi salud","energia|Tener más energía","estetica|Sentirme mejor con mi cuerpo","deporte|Mejorar en el deporte","otro|Otro motivo")]],
  bienestar:[["tca","¿Has tenido alguna dificultad con la comida (por ejemplo, un trastorno de la conducta alimentaria)?","s",1,O("no|No","pasado|Sí, en el pasado, y ahora estoy bien","si|Sí, y todavía me cuesta a veces","nsnc|Prefiero no responder")],["embarazo","¿Estás embarazada o en lactancia?","s",1,O("no|No","embarazo|Embarazo","lactancia|Lactancia","nsnc|Prefiero no decirlo")],["medica","¿Tienes alguna condición médica relacionada con la alimentación (diabetes, tiroides, renal…)?","s",1,O("no|No","si|Sí","nsnc|Prefiero no decirlo")]],
  contexto:[["trabajo","Tu trabajo es…","s",1,O("sentado|Sobre todo sentado","mixto|Mixto","activo|De pie o con mucho movimiento")],["pasos","Pasos al día (más o menos)","s",1,O("pocos|Menos de 4.000","medios|Entre 4.000 y 8.000","muchos|Más de 8.000")],["deporte","Días de deporte por semana","s",1,O("0|Ninguno","1-2|1 o 2","3-4|3 o 4","5+|5 o más")],["sueno","Horas de sueño","s",1,O("poco|Menos de 6","normal|De 6 a 7","bien|De 7 a 9","mucho|Más de 9")],["estres","Nivel de estrés","s",1,O("bajo|Bajo","medio|Medio","alto|Alto")],["cocina","¿Quién cocina en casa?","s",1,O("yo|Yo","otros|Otra persona","mixto|Compartido")],["fuera","Comidas fuera de casa por semana","s",1,O("0-2|De 0 a 2","3-5|De 3 a 5","6+|6 o más")],["tiempo","Tiempo para cocinar","s",1,O("poco|Poco","medio|El normal","mucho|Bastante")],["restricciones","Preferencias o restricciones (opcional)","x",0],["fallos","¿Qué te ha fallado otras veces? (opcional)","x",0]],
  pro:[["entreno","Tipo de entrenamiento","s",1,O("fuerza|Fuerza","cardio|Cardio","mixto|Mixto","deporte|Deporte específico")],["macro","Macro a priorizar","s",1,O("proteina|Proteína","carbos|Carbohidratos","grasa|Grasa","equilibrado|Equilibrado")]]};
 const Q={abierto:false,iniciado:false,paso:0,v:{},err:"",fin:false,forzado:false,sinDef:false,autoHab:false,menor:false,filtro:false,confirmar:false,confirmado:false,cambio:null};
-function prefillQ(){const c=D.cuest||{},x=c.contexto||{},p=c.pro||{};return{nombre:D.name||"",tono:D.tono||"",edad:+D.prof.a||"",sexo:D.prof.s||"",altura:+D.prof.h||"",peso:lastW()||"",objetivo:c.objetivo||(D.modo==="deficit"?"perder":D.modo==="superavit"?"ganar":D.modo?"mantener":""),motivo:D.motivo||"",nivel:D.nivel||"",experiencia:c.experiencia||"",...(c.bienestar||{}),...x,...p}}
+function prefillQ(){const c=D.cuest||{},x=c.contexto||{},p=c.pro||{};return{nombre:D.name||"",tono:D.tono||"",edad:+D.prof.a||"",sexo:D.prof.s||"",altura:+D.prof.h||"",peso:lastW()||"",objetivo:c.objetivo||(D.modo==="deficit"?"perder":D.modo==="superavit"?"ganar":D.modo?"mantener":""),motivo:D.motivo||"",nivel:D.nivel||"",experiencia:c.experiencia||"",guardarBien:!!c.bienestar,...(c.bienestar||{}),...x,...p}}
 function abrirQ(){Q.abierto=true;Q.iniciado=true;Q.paso=0;Q.fin=false;Q.err="";Q.forzado=false;Q.sinDef=false;Q.autoHab=false;Q.cambio=null;Q.menor=false;Q.filtro=false;Q.confirmar=false;Q.confirmado=false;Q.v=prefillQ();tab(4)}
 function cancelarQ(){const c=Q.cambio;Q.cambio=null;Q.abierto=false;Q.fin=false;if(c)tab(2);else inicio()}
 function pasosQ(){if(Q.cambio){const p=[];if(Q.cambio.desde==="habitos")p.push("bienestar");if(Q.cambio.destino==="guiado"&&!QS.contexto.filter(f=>f[3]).every(f=>Q.v[f[0]]))p.push("contexto");if(Q.cambio.destino==="pro"&&!QS.pro.every(f=>Q.v[f[0]]))p.push("pro");return p}
@@ -413,12 +416,13 @@ function cuestionario(){
  if(bl==="bienestar")h+=(Q.cambio?'<p class="hint"><b>Antes de subir de nivel, revisa cómo estás hoy:</b> tus respuestas pueden haber cambiado.</p>':'')+'<p class="hint">Estas preguntas nos ayudan a cuidarte. No hay respuestas buenas ni malas, y siempre puedes elegir «prefiero no responder». Tus respuestas se guardan en tu perfil para que no tengas que repetirlas; puedes borrarlas cuando quieras desde Perfil.</p>';
  if(bl==="contexto")h+='<p class="hint">'+(Q.v.nivel==="guiado"?"Estas respuestas nos ayudan a proponerte un objetivo suave y realista.":"Opcional: nos ayuda a darte recomendaciones más a tu medida.")+'</p>';
  h+=bl==="modo"?modoQ():QS[bl].map(f=>campoQ(f,bl)).join("");
+ if(bl==="bienestar")h+='<label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px"><input type="checkbox" id="q_guardarBien"'+(Q.v.guardarBien?" checked":"")+' style="margin-top:3px"><span>Quiero que se guarden mis respuestas de bienestar en mi perfil para no repetirlas. Puedo borrarlas cuando quiera. <span class="hint">(Opcional)</span></span></label>';
  if(Q.err)h+='<p style="color:var(--bad)">'+esc(Q.err)+'</p>';
  h+='<div style="display:flex;gap:8px;margin-top:16px">'+(Q.paso>0?'<button class="btn o" onclick="atrasQ()">Atrás</button>':"")+'<button class="btn" style="flex:1" onclick="siguienteQ()">'+(last?(Q.cambio?"Confirmar el cambio":"Guardar y empezar"):"Siguiente")+'</button>'+(D.nivel?'<button class="btn o" onclick="cancelarQ()">Cancelar</button>':"")+'</div>';
  $("#c4").innerHTML=h}
 function atrasQ(){Q.paso=Math.max(0,Q.paso-1);Q.err="";cuestionario()}
 function siguienteQ(){const bl=pasosQ()[Q.paso];let e=[];Q.err="";
- if(bl==="modo"){if(!Q.v.experiencia)e.push("Cuéntanos si has contado calorías antes");if(!Q.v.nivel)e.push("Elige un modo")}else e=leerQ(bl);
+ if(bl==="modo"){if(!Q.v.experiencia)e.push("Cuéntanos si has contado calorías antes");if(!Q.v.nivel)e.push("Elige un modo")}else e=leerQ(bl);if(bl==="bienestar")Q.v.guardarBien=!!($("#q_guardarBien")&&$("#q_guardarBien").checked);
  if(e.length){Q.err=e.join(" · ");cuestionario();return}
  if(bl==="modo"&&Q.filtro&&(Q.v.nivel==="autonomo"||Q.v.nivel==="pro")&&!Q.confirmado){Q.confirmar=true;cuestionario();return}
  if(bl==="bienestar"){const v=Q.v;Q.menor=v.edad<18;Q.filtro=v.tca==="si";Q.forzado=Q.menor;Q.sinDef=Q.menor||v.embarazo==="embarazo"||v.embarazo==="lactancia";
@@ -432,19 +436,20 @@ async function guardarQ(){const v=Q.v;
  const obj=v.objetivo==="perder"?"deficit":v.objetivo==="ganar"?"superavit":"mantenimiento",goal=Q.sinDef&&obj==="deficit"?"mantenimiento":obj;
  const ctx={},pro={};for(const f of QS.contexto)if(v[f[0]])ctx[f[0]]=v[f[0]];for(const f of QS.pro)if(v[f[0]])pro[f[0]]=v[f[0]];
  const cu={experiencia:v.experiencia,objetivo:v.objetivo,contexto:ctx,pro,sin_deficit:!!Q.sinDef,consulta_medica:v.medica==="si"};
- if(GUARDAR_BIENESTAR)cu.bienestar={tca:v.tca,embarazo:v.embarazo,medica:v.medica};
+ if(v.guardarBien)cu.bienestar={tca:v.tca,embarazo:v.embarazo,medica:v.medica};
  const riesgo=v.tca==="si";
  const row={user_id:uid,name:v.nombre,tono:v.tono,motivo:v.motivo,age:v.edad,sex:v.sexo,height_cm:v.altura,goal_mode:goal,modo:v.nivel,cuestionario:cu,riesgo_bienestar:riesgo};
  if(v.nivel!==D.nivel)row.modo_desde=new Date().toISOString();
   const{error}=await sb.from("profiles").upsert(row);
  if(error){Q.err="No se ha podido guardar: "+error.message;cuestionario();return}
+ await registraConsent("bienestar",!!v.guardarBien);
  D.name=v.nombre;D.tono=v.tono;D.motivo=v.motivo;D.prof={h:String(v.altura),a:String(v.edad),s:v.sexo};D.modo=goal;D.nivel=v.nivel;D.cuest=cu;D.riesgo=riesgo;
  try{await addW(v.peso)}catch(e){}
  try{localStorage.removeItem("fj_qborrador")}catch(e){}
  Q.fin=true;cuestionario()}
 async function borrarBienestar(){
  if(typeof confirm!=="undefined"&&!confirm("¿Borrar tus respuestas de bienestar? Podrás volver a responderlas cuando quieras."))return;
- if(D.cuest)delete D.cuest.bienestar;D.riesgo=false;
+ if(D.cuest)delete D.cuest.bienestar;D.riesgo=false;await registraConsent("bienestar",false);
  await sb.from("profiles").upsert({user_id:uid,cuestionario:D.cuest,riesgo_bienestar:false});datos()}
 function confirmaQ(){const N=NIV[Q.v.nivel];return '<div style="text-align:center;padding:24px 0 8px"><div style="font-size:48px">'+N.e+'</div><h2 style="margin:8px 0 4px">Antes de empezar</h2></div><div class="card">Has elegido el modo <b>'+N.n+'</b>, que muestra números. Recuerda que <b>puedes ocultarlos cuando quieras</b> con el botón del ojo de arriba, y <b>cambiar de modo en cualquier momento</b> desde tu perfil. Tómate el tiempo que necesites. 💚</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:16px"><button class="btn" onclick="confirmaSi()">Entendido, empezar con este modo</button><button class="btn o" onclick="confirmaHab()">'+(Q.cambio?"Mejor me quedo en Hábitos 🎒":"Mejor empiezo con Hábitos 🎒")+'</button><button class="btn o" onclick="confirmaAtras()">Volver a elegir</button></div>'}
 function confirmaSi(){Q.confirmado=true;Q.confirmar=false;if(Q.cambio&&Q.paso>=pasosQ().length-1){guardarCambio();return}Q.paso++;cuestionario()}
@@ -474,7 +479,7 @@ async function guardarCuest(){await sb.from("profiles").upsert({user_id:uid,cues
 function actualizaOjo(){renderMenu();const b=$("#ojo");if(!b)return;const h=!!(D.cuest&&D.cuest.ocultar);b.style.display=(D.nivel&&D.nivel!=="habitos")?"flex":"none";b.innerHTML=ico(h?"eyeoff":"eye","currentColor",24);if(b.setAttribute)b.setAttribute("aria-label",h?"Mostrar números":"Ocultar números")}
 async function alternaNum(){D.cuest=D.cuest||{};D.cuest.ocultar=!D.cuest.ocultar;await guardarCuest();actualizaOjo();if(TABACT===0)draw();else tab(TABACT)}
 async function cambiarNivel(k){D.nivel=k;const r=await sb.from("profiles").upsert({user_id:uid,modo:k,modo_desde:new Date().toISOString()});CHK="";actualizaOjo();inicio()}
-function avisosHtml(){let h="";{const o=semHab();h+='<div class="card" style="margin-top:14px">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div>'}h+=ofertaHtml();if(modoNum()&&ingestaBaja())h+='<div class="card" style="margin-top:14px">'+AVISO_BAJA+'</div>';if(modoNum()&&avisoObjetivo())h+='<div class="card" style="margin-top:14px">'+AVISO_OBJ+'</div>';return h}
+function avisosHtml(){let h="";{const o=semHab();h+='<div class="card" style="margin-top:14px">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div>'}h+=ofertaHtml();h+=recoHtml(2);if(modoNum()&&ingestaBaja())h+='<div class="card" style="margin-top:14px">'+AVISO_BAJA+'</div>';if(modoNum()&&avisoObjetivo())h+='<div class="card" style="margin-top:14px">'+AVISO_OBJ+'</div>';return h}
 function tocaCheckin(){if(!D.nivel||D.nivel==="habitos")return false;const c=D.cuest||{},ref=c.checkin_ultimo||D.modoDesde||D.creado;if(!ref)return false;
  if(c.checkin_snooze&&today()<c.checkin_snooze)return false;return (Date.now()-new Date(ref))/864e5>=21}
 function checkinHtml(){
@@ -509,14 +514,10 @@ function balanceHab(){const o=semHab(),L=[];
  L.push((o.dias>=5?"Muy buena constancia":o.dias>=3?"Buena constancia":"Vas empezando")+": has registrado "+o.dias+" de 7 días 🌱");
  L.push(o.mov>=3?"Te has movido "+o.mov+" días 💪":o.mov>0?"Te has movido "+o.mov+" día"+(o.mov>1?"s":"")+": un paseo más sumaría 🚶":"Todavía no hay movimiento esta semana: un paseo corto ya cuenta 🚶");
  if(o.pD){const m=o.pT/o.pD;L.push(m>=8000?"Tus pasos van muy bien 👟":m>=6000?"Buen ritmo de pasos 👟":"Hay margen para caminar un poco más 👟")}
- if(o.dFood>=3){
-  L.push(o.ver>=10?"Mucha verdura esta semana 🥗":o.ver>=5?"Buena presencia de verdura 🥗":"Poca verdura anotada: ¿añadimos una ración hoy? 🥗");
-  L.push(o.fru>=7?"Fruta casi a diario 🍎":o.fru>=3?"Algo de fruta, ¡bien! 🍎":"Podrías sumar algo de fruta esta semana 🍎");
-  if(o.ult>=6)L.push("Han salido bastantes ultraprocesados: no pasa nada, la semana que viene puedes alternarlos con algo fresco 🌱")}
  return L}
 const balanceTxt=()=>["Balance de la semana:"].concat(balanceHab().map(x=>"• "+x)).join("\n");
 function bloqueMotiv(){const o=semHab();
- return'<h3>Tu constancia</h3><div class="card">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div><h3>Balance de la semana</h3><div class="card">'+balanceHab().map(x=>'<p style="margin:4px 0">'+x+'</p>').join("")+'</div>'}
+ return'<h3>Tu constancia</h3><div class="card">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div><h3>Balance de la semana</h3><div class="card">'+balanceHab().map(x=>'<p style="margin:4px 0">'+x+'</p>').join("")+'</div>'+recoHtml(0,true)}
 function evolHabitos(ops){return'<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select><h3>Evolución del peso</h3>'+chart()+bloqueMotiv()}
 function tdee(){const b=bmr();if(!b)return 0;const c=(D.cuest&&D.cuest.contexto)||{};const base={sentado:1.2,mixto:1.3,activo:1.4}[c.trabajo]||1.3,dep={"0":0,"1-2":.05,"3-4":.1,"5+":.15}[c.deporte]||0,pas=c.pasos==="muchos"?.05:0;return b*Math.min(base+dep+pas,1.7)}
 function propGuiado(){const T=tdee(),b=bmr();if(!T)return null;
@@ -566,12 +567,13 @@ function iniciarSubida(k){
  Q.abierto=true;Q.iniciado=true;Q.paso=0;Q.fin=false;Q.err="";Q.forzado=false;Q.autoHab=false;Q.confirmar=false;Q.confirmado=false;Q.menor=false;Q.filtro=false;Q.sinDef=false;
  Q.v=prefillQ();Q.v.nivel=k;Q.cambio={destino:k,desde:D.nivel};tab(4)}
 async function guardarCambio(){const v=Q.v,k=Q.cambio.destino,now=new Date().toISOString(),cu={...(D.cuest||{})};
- if(Q.cambio.desde==="habitos"){cu.sin_deficit=!!Q.sinDef;cu.consulta_medica=v.medica==="si";if(GUARDAR_BIENESTAR)cu.bienestar={tca:v.tca,embarazo:v.embarazo,medica:v.medica}}
+ if(Q.cambio.desde==="habitos"){cu.sin_deficit=!!Q.sinDef;cu.consulta_medica=v.medica==="si";if(v.guardarBien)cu.bienestar={tca:v.tca,embarazo:v.embarazo,medica:v.medica};else delete cu.bienestar}
  cu.contexto={...(cu.contexto||{})};for(const f of QS.contexto)if(v[f[0]])cu.contexto[f[0]]=v[f[0]];
  cu.pro={...(cu.pro||{})};for(const f of QS.pro)if(v[f[0]])cu.pro[f[0]]=v[f[0]];
  const row={user_id:uid,modo:k,modo_desde:now,cuestionario:cu};if(Q.cambio.desde==="habitos")row.riesgo_bienestar=v.tca==="si";
  const{error}=await sb.from("profiles").upsert(row);
  if(error){Q.err="No se ha podido guardar: "+error.message;cuestionario();return}
+ if(Q.cambio.desde==="habitos")await registraConsent("bienestar",!!v.guardarBien);
  D.nivel=k;D.modoDesde=now;D.cuest=cu;if(row.riesgo_bienestar!==undefined)D.riesgo=row.riesgo_bienestar;
  CAM.msg="¡Listo! Ya estás en "+NIV[k].e+" "+NIV[k].n+". Puedes volver atrás cuando quieras 💚";Q.cambio=null;Q.abierto=false;actualizaOjo();tab(2)}
 function proximo(){const i=ORD.indexOf(D.nivel);return i>=0&&i<2?ORD[i+1]:null}
@@ -631,6 +633,77 @@ function calendario(){
  '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;justify-items:center">'+cab+g+'</div><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">'+leyenda+'</div>'+
  '<h3 style="margin-top:16px">'+cap(fec)+'</h3><div class="card">'+(lin.length?lin.join("<br>"):'<span class="hint">Sin registro de actividad este día.</span>')+(I.desc?'<br>💙 Día de descanso':'')+'<div style="margin-top:10px"><button class="btn o" onclick="alternaDescanso(\''+CALSEL+'\')">'+(I.desc?"Quitar descanso":"Marcar como descanso 💙")+'</button></div></div>'+
  '<h3>Resumen semanal</h3><div class="card">'+resumenSemana(CALSEL).map(x=>'<p style="margin:4px 0">'+x+'</p>').join("")+'</div>'}
+// ---------- REGLAS Y RECOMENDACIONES (tabla "reglas" de Supabase) ----------
+// Cada regla: metrica + operador + umbral + ventana_dias (+ grupo) + mensaje + modos + prioridad + activa.
+// Métricas disponibles: raciones_grupo (necesita grupo), pasos_medios, dias_deporte, dias_actividad, dias_registro.
+const OPS={"<":(a,b)=>a<b,"<=":(a,b)=>a<=b,">":(a,b)=>a>b,">=":(a,b)=>a>=b};
+function ventanaDias(n){const L=[];for(let k=1;k<=n;k++)L.push(daysAgo(k));return L}   // los n días COMPLETOS anteriores a hoy
+function valorMetrica(r){const W=ventanaDias(r.ventana_dias||7),regs=W.filter(hayReg).length;
+ if(regs<Math.min(3,W.length))return null;                     // pocos datos: no opina
+ switch(r.metrica){
+  case"raciones_grupo":{const dF=W.filter(d=>D.log.some(e=>e.d===d&&e.t==="food")).length;if(dF<Math.min(3,W.length))return null;
+   let v=0;D.log.forEach(e=>{if(e.t==="food"&&W.includes(e.d)&&!PEND.has("food:"+e.id)&&(e.g||grupoDe(e.txt))===r.grupo)v+=e.rc||1});return v}
+  case"pasos_medios":{let t=0,c=0;W.forEach(d=>{const p=infoDia(d).pasos;if(p){t+=p;c++}});return c>=Math.min(2,W.length)?t/c:null}
+  case"dias_deporte":return W.filter(d=>infoDia(d).estado==="dep").length;
+  case"dias_actividad":return W.filter(d=>["dep","lig"].includes(infoDia(d).estado)).length;
+  case"dias_registro":return regs}
+ return null}
+function recomendaciones(){const niv=D.nivel||"autonomo",out=[];
+ for(const r of (D.reglas||[])){
+  if(r.activa===false||!(r.modos||[]).includes(niv))continue;
+  if((niv==="habitos"||niv==="guiado")&&(r.ventana_dias||7)<3)continue;   // en estos modos, nunca por un solo día
+  const f=OPS[r.operador];if(!f)continue;const v=valorMetrica(r);
+  if(v!=null&&f(v,+r.umbral))out.push({pr:r.prioridad||5,msg:String(r.mensaje).replace("{valor}",Math.round(v*10)/10).replace("{umbral}",r.umbral)})}
+ return out.sort((a,b)=>a.pr-b.pr)}
+function recoHtml(max,titulo){const L=recomendaciones();if(!L.length)return"";const m=max?L.slice(0,max):L;
+ return(titulo?'<h3>Recomendaciones</h3><div class="card">':'<div class="card" style="margin-top:14px"><b>Una idea para esta semana 💡</b>')+m.map(x=>'<p style="margin:6px 0 0">'+esc(x.msg)+'</p>').join("")+'</div>'}
+const recoTxt=()=>{const L=recomendaciones();return L.length?["Ideas para esta semana:"].concat(L.map(x=>"• "+x.msg)).join("\n"):"Ahora mismo no tengo ideas nuevas: ¡lo estás haciendo bien! 🌱 (Las recomendaciones aparecen cuando hay unos días de registro.)"};
+// ---------- PRIVACIDAD Y CONSENTIMIENTO ----------
+const PRIV_VERSION="2026-11-v1";   // si cambias la política, cambia esta versión y se pedirá aceptar de nuevo
+const EDAD_MIN=14;
+const RESP={nombre:typeof PRIV_RESPONSABLE!=="undefined"?PRIV_RESPONSABLE:"[COMPLETAR: nombre del responsable]",nif:typeof PRIV_NIF!=="undefined"?PRIV_NIF:"",dir:typeof PRIV_DIRECCION!=="undefined"?PRIV_DIRECCION:"",mail:typeof PRIV_EMAIL!=="undefined"?PRIV_EMAIL:"[COMPLETAR: email de contacto]",reg:typeof PRIV_REGION!=="undefined"?PRIV_REGION:"la Unión Europea"};
+const secP=(t,x)=>'<h3>'+t+'</h3><p style="margin:6px 0">'+x+'</p>';
+function politicaHtml(){const R=RESP;return'<h2 style="margin-top:0">Política de privacidad</h2><p class="hint">Versión '+PRIV_VERSION+'. Escrita en lenguaje claro.</p>'+
+ secP("1. Quién es el responsable","<b>"+R.nombre+"</b>"+(R.nif?" (NIF "+R.nif+")":"")+(R.dir?". Dirección: "+R.dir:"")+". Para cualquier duda o para ejercer tus derechos: <b>"+R.mail+"</b>.")+
+ secP("2. Qué datos tratamos","Tu cuenta (email y contraseña, que gestiona el proveedor de acceso). Tu perfil (nombre, edad, sexo, altura, objetivo y modo). Tus <b>datos de salud y hábitos</b>: peso, alimentos y raciones, ejercicio, pasos y días de descanso. Las respuestas del cuestionario sobre tu día a día. Solo si tú lo decides, tus respuestas de bienestar (relación con la comida, embarazo o lactancia, condiciones médicas). Los consentimientos que aceptas, con fecha y versión.")+
+ secP("3. Para qué los usamos","Para ofrecerte el seguimiento, adaptar la app a tu modo y darte recomendaciones sencillas calculadas dentro de la app. No vendemos tus datos, no hay publicidad, no hacemos perfiles comerciales ni decisiones automáticas con efectos legales.")+
+ secP("4. Base legal","Tu <b>consentimiento explícito</b> para tratar tus datos de salud (artículos 6.1.a y 9.2.a del RGPD). Guardar tus respuestas de bienestar es otro consentimiento aparte y opcional. Puedes retirar tu consentimiento cuando quieras desde Perfil, sin que afecte a lo anterior. Como la app necesita tus datos de salud para funcionar, retirar el consentimiento principal supone borrar tu cuenta.")+
+ secP("5. Cuánto tiempo los guardamos","Mientras tengas cuenta. Al borrarla se eliminan tus datos. Los proveedores pueden conservar copias de seguridad durante un tiempo limitado.")+
+ secP("6. Quién puede ver tus datos","Tú. La persona responsable solo accede técnicamente para mantener el servicio. Usamos proveedores con contrato de encargado del tratamiento: <b>Supabase</b> (base de datos y acceso; servidores en "+R.reg+") y <b>Vercel</b> (alojamiento de la página, con datos técnicos como la IP, que puede implicar transferencias fuera de la UE con las garantías del RGPD). La app <b>no envía tus datos a ningún servicio de inteligencia artificial</b>.")+
+ secP("7. Tus derechos","Acceso, rectificación, supresión, oposición, limitación, portabilidad y retirada del consentimiento. Desde Perfil → «Tus datos y privacidad» puedes descargar tus datos y borrar tu cuenta. También puedes escribir a "+R.mail+". Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).")+
+ secP("8. Menores","La app es para personas de <b>"+EDAD_MIN+" años o más</b>. Si tienes menos de 18, usarás el modo Hábitos, sin calorías ni números.")+
+ secP("9. Seguridad","Las conexiones son cifradas (HTTPS). Cada persona solo accede a sus propios datos gracias a las reglas de seguridad de la base de datos. El acceso administrativo está restringido y protegido.")+
+ secP("10. Datos en tu dispositivo","Usamos el almacenamiento del navegador solo para mantener tu sesión y guardar borradores. No usamos cookies de publicidad ni de analítica.")+
+ secP("11. Aviso importante","FitnessJourney no es un producto sanitario: no diagnostica ni trata, y su información es general. Si tienes una condición médica o dificultades con la comida, consulta con un profesional de la salud.")+
+ secP("12. Cambios","Si cambiamos esta política de forma relevante, te pediremos aceptarla de nuevo.")}
+function verPolitica(){$("#priv").innerHTML=politicaHtml()+'<button class="btn" style="width:100%;margin:16px 0" onclick="cierraPolitica()">Cerrar</button>';$("#priv").style.display="block"}
+function cierraPolitica(){$("#priv").style.display="none"}
+const consentOk=()=>{const c=D.consent||{};return["privacidad","edad","salud"].every(t=>c[t]&&c[t].aceptado&&c[t].version===PRIV_VERSION)};
+async function registraConsent(tipo,aceptado){const prev=(D.consent||{})[tipo];if(prev&&prev.aceptado===aceptado&&(tipo==="bienestar"||prev.version===PRIV_VERSION))return;
+ const{error}=await sb.from("consentimientos").insert({tipo,version:PRIV_VERSION,aceptado});
+ if(!error){D.consent=D.consent||{};D.consent[tipo]={tipo,version:PRIV_VERSION,aceptado,fecha:new Date().toISOString()}}return error}
+function pideConsent(){$("#auth").style.display="none";$("#app").style.display="none";
+ const box=(id,t)=>'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px"><input type="checkbox" id="'+id+'" onchange="chkConsent()" style="margin-top:3px"><span>'+t+'</span></label>';
+ $("#cons").innerHTML='<div style="max-width:560px;margin:0 auto"><div style="text-align:center;color:var(--ac);padding-top:8px">'+LOGO(48)+'</div><h2 style="text-align:center;margin:6px 0">Antes de empezar</h2><p class="hint" style="text-align:center">Tu privacidad importa. Esto es lo esencial:</p>'+
+ '<div class="card"><p style="margin:0 0 6px">• Guardamos tu <b>peso, alimentación, ejercicio y hábitos</b>: son datos de salud.</p><p style="margin:0 0 6px">• Solo los usas tú y los usamos para ofrecerte la app. <b>No los vendemos ni hay publicidad.</b></p><p style="margin:0">• Puedes <b>descargarlos o borrarlos</b> cuando quieras desde Perfil.</p></div>'+
+ '<p style="margin:12px 0 0"><a href="#" onclick="verPolitica();return false" style="color:var(--ac)">Leer la política de privacidad completa</a></p>'+
+ box("c1","He leído la política de privacidad.")+box("c2","Tengo "+EDAD_MIN+" años o más.")+box("c3","Doy mi <b>consentimiento explícito</b> para que FitnessJourney trate mis datos de salud (peso, alimentación, ejercicio y hábitos) con el fin de ofrecerme el servicio. Puedo retirarlo en cualquier momento.")+
+ '<p id="cerr" style="color:var(--bad);margin:10px 0 0"></p><div style="display:flex;flex-direction:column;gap:8px;margin-top:14px"><button class="btn" id="cok" onclick="aceptaConsent()" disabled style="opacity:.5">Aceptar y continuar</button><button class="btn o" onclick="rechazaConsent()">No acepto</button></div></div>';
+ $("#cons").style.display="block"}
+function chkConsent(){const ok=["c1","c2","c3"].every(i=>$("#"+i)&&$("#"+i).checked),b=$("#cok");b.disabled=!ok;b.style.opacity=ok?1:.5}
+async function aceptaConsent(){let err=null;for(const t of["privacidad","edad","salud"]){err=await registraConsent(t,true);if(err)break}
+ if(err){$("#cerr").textContent="No se ha podido registrar tu consentimiento: "+err.message;return}mostrarApp()}
+async function rechazaConsent(){await sb.auth.signOut();location.reload()}
+function privHtml(){const c=(D.consent||{}).salud;
+ return'<h3>Tus datos y privacidad</h3><div class="card">'+(c?'<p style="margin:0 0 8px">Consentimiento aceptado el '+new Date(c.fecha).toLocaleDateString("es-ES")+' (versión '+esc(c.version)+').</p>':'')+'<div style="display:flex;flex-direction:column;gap:8px"><button class="btn o" onclick="verPolitica()">Leer la política de privacidad</button><button class="btn o" onclick="descargarDatos()">Descargar mis datos</button><button class="btn o" style="color:var(--bad);border-color:var(--bad)" onclick="borrarCuenta()">Retirar mi consentimiento y borrar mi cuenta</button></div><p class="hint" id="privmsg" style="margin:8px 0 0"></p></div>'}
+async function descargarDatos(){const T=["profiles","food_log","activity_log","weights","descansos","foods","activities","consentimientos"],out={exportado:new Date().toISOString(),usuario:uid};
+ for(const t of T){let q=sb.from(t).select("*");if(t==="foods"||t==="activities")q=q.eq("user_id",uid);const{data}=await q;out[t]=data||[]}
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));a.download="fitnessjourney-mis-datos-"+today()+".json";document.body.appendChild(a);a.click();a.remove();
+ const m=$("#privmsg");if(m)m.textContent="Descarga preparada: revisa tu carpeta de descargas."}
+async function borrarCuenta(){const t=typeof prompt!=="undefined"?prompt("Se borrarán tu cuenta y todos tus datos de forma definitiva. Para confirmar, escribe BORRAR"):"BORRAR";
+ if(String(t||"").trim().toUpperCase()!=="BORRAR")return;
+ const{error}=await sb.rpc("borrar_mi_cuenta");if(error){const m=$("#privmsg");if(m)m.textContent="No se ha podido borrar: "+error.message;return}
+ await sb.auth.signOut();location.reload()}
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
 function inicio(){
@@ -689,8 +762,8 @@ function datos(){const p=D.prof,P=periodo(PER);let h7="";
  '<div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" onclick="guardar()">Guardar</button><span id="gmsg" class="hint"></span></div>'+'<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
  '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+kc(Math.abs(P.def))+' kcal</b></div>'+enlaceInfo()+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
  '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
- '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span>';X=perfilPorModo(X);const a=X.indexOf('<h3>Periodo</h3>'),b=X.indexOf('<h3>Importar pesos</h3>');$("#c2").innerHTML=X.slice(0,a)+X.slice(b);$("#c6").innerHTML=modoNum()?bloqueMotiv()+X.slice(a,b):evolHabitos(ops)}
-const CAMPOS=[["pw","Peso (kg)",20,400,1],["ph","Altura (cm)",100,250,1],["pa","Edad",10,110,1],["sk","kcal por paso",0.01,0.5,0],["gk","Objetivo fijo de ingesta",500,10000,0],["df","Déficit/superávit diario",0,2000,0],["dw","Déficit/superávit semanal",0,14000,0],["bm","Metabolismo basal manual",500,4000,0],["wg","Peso objetivo",30,300,0]];
+ '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span>'+privHtml();X=perfilPorModo(X);const a=X.indexOf('<h3>Periodo</h3>'),b=X.indexOf('<h3>Importar pesos</h3>');$("#c2").innerHTML=X.slice(0,a)+X.slice(b);$("#c6").innerHTML=modoNum()?bloqueMotiv()+X.slice(a,b):evolHabitos(ops)}
+const CAMPOS=[["pw","Peso (kg)",20,400,1],["ph","Altura (cm)",100,250,1],["pa","Edad",14,110,1],["sk","kcal por paso",0.01,0.5,0],["gk","Objetivo fijo de ingesta",500,10000,0],["df","Déficit/superávit diario",0,2000,0],["dw","Déficit/superávit semanal",0,14000,0],["bm","Metabolismo basal manual",500,4000,0],["wg","Peso objetivo",30,300,0]];
 function marcar(){const m=$("#gmsg");m.textContent="Hay cambios sin guardar";m.style.color="var(--mu)"}
 async function guardar(){
  const m=$("#gmsg"),err=[];
