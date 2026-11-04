@@ -79,9 +79,9 @@ async function load(){
  const s=daysAgo(90),q=await Promise.all([sb.from("foods").select("*"),sb.from("activities").select("*"),sb.from("food_log").select("*").gte("day",s),sb.from("activity_log").select("*").gte("day",s),sb.from("weights").select("*").order("day"),sb.from("profiles").select("*").maybeSingle()]);
  const own=(a,b)=>(a.user_id?1:0)-(b.user_id?1:0);
  D.foods={};D.acts={};
- (q[0].data||[]).sort(own).forEach(r=>D.foods[r.name.toLowerCase()]={id:r.id,k:r.kcal_100g,p:r.portion_g,u:r.portion_name,kp:r.kcal_portion,own:!!r.user_id});
+ (q[0].data||[]).sort(own).forEach(r=>D.foods[r.name.toLowerCase()]={id:r.id,k:r.kcal_100g,p:r.portion_g,u:r.portion_name,kp:r.kcal_portion,g:r.grupo,own:!!r.user_id});
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
- D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal,est:!!r.estimated})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
+ D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal,est:!!r.estimated,g:r.grupo,rc:r.raciones})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));
  const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modoDesde=p.modo_desde||"";D.creado=p.creado_en||"";D.modo=p.goal_mode||"";D.nivel=p.modo||"";D.tono=p.tono||"";D.motivo=p.motivo||"";D.cuest=p.cuestionario||{};D.riesgo=!!p.riesgo_bienestar}
 
@@ -91,7 +91,7 @@ function findFood(n){const w=palabras(n);let b=null,bs=0;for(const name in D.foo
 function findAct(n){for(const a in D.acts)for(const m of D.acts[a].m)if(new RegExp("(^|[^a-z])"+m).test(n))return a;return null}
 function cut(t,re){const m=re.exec(norm(t));if(!m)return[null,t];return[m,t.slice(0,m.index)+" "+t.slice(m.index+m[0].length)]}
 const QW={un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,medio:.5,media:.5};
-const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece que creo eran era tengo aproximadamente otro otra otros otras mas menos copa copas cana canas cucharada cucharadas cucharadita cucharaditas porcion porciones trozo trozos me te se nos tomado bebido cenado desayunado almorzado comiendo tomando".split(" "));
+const STOP=new Set("he comido comi desayune almorce cene tome bebi de del la el los las unos unas son es tiene tienen para con hoy y plato platos racion raciones vaso vasos pieza piezas lata latas loncha lonchas por cada mi en dia a comer cenar desayunar almorzar tomar pensando estoy voy podria puedo quiero apetece que creo eran era tengo aproximadamente otro otra otros otras mas menos copa copas cana canas cucharada cucharadas cucharadita cucharaditas porcion porciones trozo trozos pequeno pequena pequenos pequenas chico chica grande grandes gran normal mediano mediana me te se nos tomado bebido cenado desayunado almorzado comiendo tomando".split(" "));
 function parseFood(raw){
  let t=raw.toLowerCase(),per,kc,gr;
  [per,t]=cut(t,/(por|cada|\/)\s*100\s*(g|gr|gramos|ml)\b/);
@@ -100,10 +100,11 @@ function parseFood(raw){
  const toks=t.replace(/[^\p{L}\p{N}.,\s]/gu," ").split(/\s+/).map(x=>x.replace(/[.,]+$/,"")).filter(Boolean);
  let q=1;const qi=toks.findIndex(x=>QW[norm(x)]!=null||/^\d+([.,]\d+)?$/.test(x));
  if(qi>=0){q=QW[norm(toks[qi])]??num(toks[qi]);toks.splice(qi,1)}
+ let tam=1,por=null;const ti=toks.findIndex(x=>TAM[norm(x)]);if(ti>=0){por=TAM[norm(toks[ti])][0];tam=TAM[norm(toks[ti])][1];toks.splice(ti,1)}
  const nm=toks.filter(x=>!STOP.has(norm(x))).join(" ");
  const name=kc?(nm||findFood(norm(raw))):(findFood(norm(raw))||nm);
  if(!name)return{err:"No he entendido qué alimento es."};
- let f=D.foods[name],total,desc,learned=false;
+ let f=D.foods[name],total,desc,learned=false,rac=q*tam;
  if(kc){
   const K=num(kc[1]),G=gr?num(gr[1]):null;
   if(!f||!f.own){f=D.foods[name]={...(f||{k:null,p:null,u:"ración",kp:null}),id:null,own:true};learned=true}
@@ -111,23 +112,23 @@ function parseFood(raw){
   else if(G){f.k=K/G*100;f.p=G;total=K;desc=G+" g de "+name}
   else{f.kp=K;total=K*q;desc=q+" × "+name;if(f.k!=null&&f.p)f.k=K/f.p*100}
  }else{
-  if(!f)return{unknown:true,name,q,G:gr?num(gr[1]):null};
-  if(gr&&f.k!=null){const G=num(gr[1]);total=f.k*G/100;desc=G+" g de "+name}
-  else{total=unitK(f)*q;desc=(q!==1?q+" × ":"1 ")+(f.u||"ración")+" de "+name+(f.p?" (~"+Math.round(f.p*q)+" g)":"")}
+  if(!f)return{unknown:true,name,q,G:gr?num(gr[1]):null,tam,por};
+  if(gr&&f.k!=null){const G=num(gr[1]);total=f.k*G/100;desc=G+" g de "+name;rac=f.p?G/f.p:1}
+  else{total=unitK(f)*q*tam;desc=(q!==1?q+" × ":"1 ")+(f.u||"ración")+" de "+name+(por?" · porción "+TAMN[por]:"")+(f.p?" (~"+Math.round(f.p*q*tam)+" g)":"")}
  }
- return{kcal:total,desc,learned,name,f,save:!!kc};
+ return{kcal:total,desc,learned,name,f,save:!!kc,grupo:(f&&f.g)||null,porcion:por,raciones:rac};
 }
 async function saveFood(f,name,src){
- const r={name,kcal_100g:f.k,portion_g:f.p,portion_name:f.u||"ración",kcal_portion:f.kp,source:src||"chat"};
+ const r={name,kcal_100g:f.k,portion_g:f.p,portion_name:f.u||"ración",kcal_portion:f.kp,grupo:f.g||null,source:src||"chat"};
  if(f.id)await sb.from("foods").update(r).eq("id",f.id);
  else{const{data}=await sb.from("foods").insert({...r,user_id:uid}).select().single();if(data)f.id=data.id}}
 const lastW=()=>D.weights.length?D.weights[D.weights.length-1].w:0;
 function bmr(){if(D.basal)return D.basal;const p=D.prof,w=lastW();if(!w||!p.h||!p.a)return 0;return 10*w+6.25*num(p.h)-5*num(p.a)+(p.s==="m"?5:-161)}
 function day(d){let i=0,a=0;D.log.forEach(e=>{if(e.d===d&&!PEND.has(e.t+":"+e.id)){if(e.t==="food")i+=e.kcal;else a+=e.kcal}});const b=bmr();return{i,a,b,out:b+a,bal:i-b-a}}
-async function add(t,txt,kcal,steps,dia,est){
- const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;if(est)row.estimated=true;
+async function add(t,txt,kcal,steps,dia,est,ex){
+ const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;if(est)row.estimated=true;if(ex)Object.assign(row,ex);
  const{data,error}=await sb.from(t==="food"?"food_log":"activity_log").insert(row).select().single();
- if(error)throw error;D.log.push({id:data.id,d:data.day,t,txt,kcal,est:!!est})}
+ if(error)throw error;D.log.push({id:data.id,d:data.day,t,txt,kcal,est:!!est,g:ex&&ex.grupo,rc:ex&&ex.raciones})}
 async function addW(kg,dia){
  const d=dia||today(),{error}=await sb.from("weights").upsert({day:d,kg},{onConflict:"user_id,day"});if(error)throw error;
  D.weights=D.weights.filter(x=>x.d!==d);D.weights.push({d,w:kg});D.weights.sort((a,b)=>a.d<b.d?-1:1)}
@@ -179,9 +180,9 @@ function sinRes(n){sb.rpc("registrar_sin_resultado",{t:n}).then(()=>{},()=>{})}
 async function aproxFood(name){
  const ws=palabras(name).sort((a,b)=>b.length-a.length);
  for(const q of [name,...ws]){const{data}=await sb.rpc("buscar_genericos",{q});
-  if(data&&data.length){const g=data[0];return{k:+g.kcal_100g,p:g.portion_g,u:g.portion_name,lab:g.name+" (referencia genérica)",src:"valor genérico de «"+g.name+"»"}}}
+  if(data&&data.length){const g=data[0];return{k:+g.kcal_100g,p:g.portion_g,u:g.portion_name,g:g.grupo,lab:g.name+" (referencia genérica)",src:"valor genérico de «"+g.name+"»"}}}
  for(const w of ws){const c=await buscar(w);
-  if(c.length>=3){const k=c.map(x=>+x.kcal_100g).sort((a,b)=>a-b);return{k:k[Math.floor(k.length/2)],lo:k[0],hi:k[k.length-1],lab:w+" (media de "+c.length+" productos parecidos)",src:"media de "+c.length+" productos parecidos del catálogo"}}}
+  if(c.length>=3){const k=c.map(x=>+x.kcal_100g).sort((a,b)=>a-b);return{k:k[Math.floor(k.length/2)],lo:k[0],hi:k[k.length-1],g:c[0].grupo,lab:w+" (media de "+c.length+" productos parecidos)",src:"media de "+c.length+" productos parecidos del catálogo"}}}
  return null}
 async function estimar(r){
  const c=await buscar(r.name);let x=null;
@@ -189,7 +190,7 @@ async function estimar(r){
  if(!x)return null;
  const tot=r.G?x.k*r.G/100:(x.p?x.k*x.p/100*r.q:x.k*r.q);
  return{kcal:tot,desc:(r.G?r.G+" g":r.q+" × "+(x.u||"100 g"))+" de "+r.name+" (aprox.)",name:r.name,est:true,save:false}}
-function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+kc(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+kc(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
+function metaDia(d){const dE=defE();if(dE!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*dE,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+kc(dE)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+kc(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
 function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
  if(!m)return et+": "+kc(d.i)+" kcal ingeridas. Completa tu perfil en Perfil para calcular cuántas te quedan.";
  const q=m.l-d.i;
@@ -215,7 +216,7 @@ function semana(off){const h=new Date();h.setHours(12,0,0,0);const ini=new Date(
   if(r.i>0){acc+=r.i-r.out;nd++}
   L.push(d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric"})+": "+(r.i>0?kc(r.i)+" ingeridas · gasto "+kc(r.out)+" · balance "+(r.bal>0?"+":"")+kc(r.bal):"sin registro"))}
  return{L,acc,nd,ini:iso(ini)}}
-function resSemana(off){const a=semana(off),o=semana(off+1),obj=D.defw!=null?D.defw:(D.def!=null?D.def*7:null);
+function resSemana(off){const a=semana(off),o=semana(off+1),obj=D.defw!=null?D.defw:(defE()!=null?defE()*7:null);
  return["Semana desde "+a.ini.slice(5)+":"].concat(a.L,["Acumulado: "+(a.acc>0?"+":"")+kc(a.acc)+" kcal en "+a.nd+" días"+(obj!=null?" (objetivo semanal: "+(D.modo==="superavit"?"+":"−")+kc(obj)+")":"")+".","Semana anterior: "+(o.acc>0?"+":"")+kc(o.acc)+" kcal."]).join("\n")}
 function nota(){const P=periodo(PER),a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);
  let t="Seguimiento de peso y calorías\nPeriodo: "+a+" a "+today()+"\n\nObjetivos\n"+(D.wgoal?"- Peso objetivo: "+f2(D.wgoal)+" kg\n":"")+(D.def!=null?"- Déficit diario: "+kc(D.def)+" kcal\n":"")+(D.defw!=null?"- Déficit semanal: "+kc(D.defw)+" kcal\n":"")+(D.goal?"- Ingesta objetivo: "+kc(D.goal)+" kcal\n":"");
@@ -240,7 +241,7 @@ async function consulta(s){
  D.foods=JSON.parse(bak);ULT=it2.length?{items:it2,dia}:null;
  L.push("Total: "+kc(tot)+" kcal"+(it2.some(x=>x.est)?" (incluye valores aproximados)":"")+" · no guardado; di «añade eso» para registrarlo.");
  const d=day(dia),m=metaDia(d),pr=d.i+tot-d.out;
- if(d.out)L.push("Previsión: llevas "+kc(d.i)+" + esto "+kc(tot)+" = "+kc(d.i+tot)+" kcal. Gasto estimado "+kc(d.out)+" → balance previsto "+(pr>0?"+":"")+kc(pr)+(D.def!=null?" (objetivo −"+kc(D.def)+")":"")+".");
+ if(d.out)L.push("Previsión: llevas "+kc(d.i)+" + esto "+kc(tot)+" = "+kc(d.i+tot)+" kcal. Gasto estimado "+kc(d.out)+" → balance previsto "+(pr>0?"+":"")+kc(pr)+(defE()!=null?" (objetivo −"+kc(defE())+")":"")+".");
  if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+kc(m.l-d.i-tot):"Te pasarías en "+kc(d.i+tot-m.l))+" kcal para "+m.t+".");
  else L.push("Completa tu perfil en Perfil para saber si encaja en el día.");
  return L}
@@ -254,6 +255,9 @@ async function buscar(q){const{data,error}=await sb.rpc("buscar_catalogo",{q});r
 async function handle(text){
  OPTS=null;const s=pal2num(text).replace(/hora y media/gi,"1,5 horas"),out=[];
  const n0=norm(s);
+ if(!modoNum()){
+  if(/(estoy pensando|pensando en|voy a (comer|cenar|tomar|desayunar|almorzar)|podria (comer|cenar|tomar)|puedo (comer|cenar|tomar)|me apetece|me gustaria (tomar|comer|cenar)|cuantas (calorias|kcal)|encaja)/.test(n0))return["En el modo Hábitos no mostramos calorías. Cuando lo comas, cuéntamelo y lo anoto como una ración. Si en algún momento quieres ver números, puedes cambiar de modo desde tu perfil. 💚"];
+  if(/(acumulado|resumen|balance).*semana|semana.*(acumulado|balance)/.test(n0))return[balanceTxt()]}
  if(ULT&&/\b(anade|apunta|registra|anota|guarda|agrega)\b.*\b(eso|esto|todo|lo anterior)\b/.test(n0)){
   const U=ULT;ULT=null;const L=["Registrado:"];
   for(const r of U.items){if(r.save){D.foods[r.name]=r.f;await saveFood(r.f,r.name)}await add("food",r.desc,r.kcal,null,U.dia,r.est);L.push("• "+r.desc+" → "+kc(r.kcal)+" kcal")}
@@ -292,17 +296,18 @@ async function handle(text){
    if(!OPTS){const res=await buscar(r.name);
     if(res.length){OPTS={items:res,pend:{...r,dia:cur}};out.push("No tengo «"+r.name+"» en tus alimentos. En el catálogo he encontrado esto, ¿cuál es?");continue}}
    if(!OPTS){const ap=await aproxFood(r.name);sinRes(r.name);
-    if(ap){OPTS={items:[{name:"Usar aproximado: "+ap.lab+" ≈ "+kc(ap.k)+" kcal/100 g"+(ap.hi?" (rango "+kc(ap.lo)+"–"+kc(ap.hi)+")":""),kcal_100g:ap.k,portion_g:ap.p,portion_name:ap.u,aprox:true}],pend:{...r,dia:cur}};
+    if(ap){OPTS={items:[{name:"Usar aproximado: "+ap.lab+(modoNum()?" ≈ "+kc(ap.k)+" kcal/100 g"+(ap.hi?" (rango "+kc(ap.lo)+"–"+kc(ap.hi)+")":""):""),kcal_100g:ap.k,portion_g:ap.p,portion_name:ap.u,aprox:true,grupo:ap.g}],pend:{...r,dia:cur}};
      out.push("No tengo «"+r.name+"» exacto, ni la cantidad precisa. Si quieres, te doy un aproximado ("+ap.src+"; puede variar según la marca). "+(r.G?"":(ap.p?"Si no indicas cantidad, supondré 1 "+ap.u+" ("+ap.p+").":"Si no indicas cantidad, supondré 100 g."))+" ¿Lo uso?");continue}}
+   if(!modoNum()&&!OPTS){OPTS={items:GBTN(),pend:{...r,dia:cur}};out.push("No encuentro «"+r.name+"». ¿Qué tipo de alimento es? Lo anoto como una ración.");continue}
    out.push("No conozco «"+r.name+"». Dime sus calorías, por ejemplo: «"+r.name+" 120 kcal por 100 g» o «"+r.name+" 250 kcal».");continue}
   if(r.save)await saveFood(r.f,r.name);
-  await add("food",r.desc,r.kcal,null,cur);out.push(r.desc+" → "+kc(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
+  await add("food",r.desc,r.kcal,null,cur,false,{grupo:r.grupo,porcion:r.porcion,raciones:r.raciones});out.push(r.desc+" → "+kc(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
  }
  if(!OPTS)out.push(resumen(cur));
  return out}
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
-function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(maskT(m.t))+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+' · '+kc(x.kcal_100g)+' kcal/100 g')+'</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguna: dar mis calorías</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
+function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(maskT(m.t))+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+(modoNum()?' · '+kc(x.kcal_100g)+' kcal/100 g':''))+'</button>').join("")+'<button onclick="pick('+mi+',-1)">'+(modoNum()?"Ninguna: dar mis calorías":"Ninguna de estas")+'</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
 async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";try{localStorage.removeItem("fj_borrador")}catch(e){}msgs.push({r:"u",t});
  try{const L=await handle(t);msgs.push({r:"b",t:L.join("\n"),opts:OPTS})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
 $("#in").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
@@ -314,24 +319,24 @@ $("#in").addEventListener("input",()=>{try{localStorage.setItem("fj_borrador",$(
 try{$("#in").value=localStorage.getItem("fj_borrador")||""}catch(e){}
 async function pick(mi,i){
  const m=msgs[mi],o=m.opts;if(!o)return;m.opts=null;
- if(i<0){msgs.push({r:"b",t:"De acuerdo. Dime sus calorías, por ejemplo: «"+o.pend.name+" 120 kcal por 100 g»."});draw();return}
+ if(i<0){msgs.push({r:"b",t:modoNum()?"De acuerdo. Dime sus calorías, por ejemplo: «"+o.pend.name+" 120 kcal por 100 g».":"De acuerdo, no lo anoto. Si quieres, escríbelo de otra forma o dime qué tipo de alimento es."});draw();return}
  const x=o.items[i],r=o.pend;
  try{
   if(x.aprox){
-   const k=+x.kcal_100g,total=r.G?k*r.G/100:(x.portion_g?k*x.portion_g/100*r.q:k*r.q);
-   const desc=r.G?r.G+" g de "+r.name+" (aprox.)":r.q+" × "+(x.portion_name||"100 g")+" de "+r.name+" (aprox.)";
-   await add("food",desc,total,null,r.dia,true);
+   const tm=r.tam||1,k=+x.kcal_100g,total=r.G?k*r.G/100:(x.portion_g?k*x.portion_g/100*r.q*tm:k*r.q*tm);
+   const desc=r.G?r.G+" g de "+r.name+" (aprox.)":r.q+" × "+(x.portion_name||"100 g")+" de "+r.name+(r.por?" · porción "+TAMN[r.por]:"")+" (aprox.)";
+   await add("food",desc,total,null,r.dia,true,{grupo:x.grupo||null,porcion:r.por||null,raciones:r.q*tm});
    msgs.push({r:"b",t:desc+" → ≈"+kc(total)+" kcal (estimado; no se guarda como alimento)\n"+resumen(r.dia||today())})
   }else{
-  const f=D.foods[r.name]={id:null,k:+x.kcal_100g,p:null,u:"ración",kp:null,own:true};
+  const f=D.foods[r.name]={id:null,k:+x.kcal_100g,p:null,u:"ración",kp:null,g:x.grupo||null,own:true};
   const total=r.G?f.k*r.G/100:f.k*r.q;
   const desc=r.G?r.G+" g de "+r.name:r.q+" × 100 g de "+r.name;
-  await saveFood(f,r.name,"mercadona");await add("food",desc,total,null,r.dia);
+  await saveFood(f,r.name,"mercadona");await add("food",desc,total,null,r.dia,false,{grupo:x.grupo||null,raciones:r.G?1:r.q});
   const d=day(today());
   msgs.push({r:"b",t:desc+" → "+kc(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})}
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){TABACT=n;actualizaOjo();$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
+function tab(n){TABACT=n;actualizaOjo();$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){const bt=$("#t"+i);if(bt)bt.classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
 let MIS=[];
 const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
@@ -345,7 +350,6 @@ const MODOS={deficit:["down","Perder grasa","Déficit moderado y sostenible"],ma
 const AVISO="Un déficit de más de 600 kcal/día es grande. Lo habitual recomendado son 300–500 kcal/día y conviene conseguirlo sumando movimiento antes que comiendo menos. Si tienes dudas, consulta con un profesional sanitario.";
 async function elegir(m){await setCol("goal_mode","modo",m);
  if(m==="mantenimiento"){await setCol("deficit_kcal","def",null);await setCol("goal_kcal","goal",null)}
- else if(D.def==null)await setCol("deficit_kcal","def",m==="deficit"?300:250);
  inicio()}
 function objetivoPantalla(){return'<div style="text-align:center;padding:16px 0 4px"><h2 style="margin:0 0 6px">¿Qué quieres conseguir?</h2><p class="hint" style="margin:0">Elige tu punto de partida. Podrás cambiarlo cuando quieras.</p></div>'+
  Object.keys(MODOS).map(k=>'<button onclick="elegir(\''+k+'\')" style="width:100%;display:flex;gap:14px;align-items:center;text-align:left;margin-top:10px;padding:14px;font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--bd);border-radius:16px">'+ico(MODOS[k][0],"var(--ac)",32)+'<span><b>'+MODOS[k][1]+'</b><br><span class="hint">'+MODOS[k][2]+'</span></span></button>').join("")+
@@ -360,7 +364,7 @@ const GUIA=[["flame","7.700 kcal ≈ 1 kg de grasa","Es una aproximación útil,
 ["apple","Come de todo y mira la tendencia","Ningún alimento está prohibido. Mira la media semanal, no el peso de un día: el agua, la sal y la digestión mueven la báscula."]];
 function guia(){$("#c5").innerHTML='<h3 style="margin-top:6px">Cómo hacerlo de forma sana</h3>'+GUIA.map(g=>'<div class="card" style="display:flex;gap:12px;margin-bottom:10px">'+ico(g[0],"var(--ac)",30)+'<div><b>'+g[1]+'</b><p style="margin:4px 0 0" class="hint">'+g[2]+'</p></div></div>').join("")+'<p class="hint">Información general: no sustituye a un profesional sanitario. Fuentes: Lancet Public Health (2025), Harvard Health Publishing, NHS, CDC, Hall et al. (estudio CALERIE), guías del HHS de EE. UU.</p>'}
 const PAGS=[[4,"Inicio","home"],[0,"Chat","chat"],[1,"Registro","today"],[6,"Evolución","chart"],[3,"Alimentos","apple"],[-1],[5,"Guía","shield"],[2,"Perfil","user"]];
-function renderMenu(){$("#navm").innerHTML=PAGS.map(x=>x[0]<0?'<hr style="border:0;border-top:1px solid var(--bd);margin:6px 4px">':'<button id="t'+x[0]+'" onclick="tab('+x[0]+')">'+ico(x[2],"currentColor",22)+x[1]+'</button>').join("")+'<button onclick="logout()">'+ico("logout","currentColor",22)+'Cerrar sesión</button>'}
+function renderMenu(){$("#navm").innerHTML=PAGS.filter(x=>!(x[0]===3&&D.nivel==="habitos")).map(x=>x[0]<0?'<hr style="border:0;border-top:1px solid var(--bd);margin:6px 4px">':'<button id="t'+x[0]+'" onclick="tab('+x[0]+')">'+ico(x[2],"currentColor",22)+x[1]+'</button>').join("")+'<button onclick="logout()">'+ico("logout","currentColor",22)+'Cerrar sesión</button>'}
 function menu(){const m=$("#menu");m.style.display=m.style.display==="none"?"block":"none"}
 function faltan(){const f=[];if(!lastW())f.push("peso");if(!D.prof.h)f.push("altura");if(!D.prof.a)f.push("edad");if(!D.modo)f.push("objetivo");return f}
 const req=v=>(v===""||v==null||v===0)?' class="falta"':'';
@@ -428,10 +432,9 @@ async function guardarQ(){const v=Q.v;
  const riesgo=v.tca==="si";
  const row={user_id:uid,name:v.nombre,tono:v.tono,motivo:v.motivo,age:v.edad,sex:v.sexo,height_cm:v.altura,goal_mode:goal,modo:v.nivel,cuestionario:cu,riesgo_bienestar:riesgo};
  if(v.nivel!==D.nivel)row.modo_desde=new Date().toISOString();
- if((v.nivel==="autonomo"||v.nivel==="pro")&&goal==="deficit"&&D.def==null)row.deficit_kcal=300;
- const{error}=await sb.from("profiles").upsert(row);
+  const{error}=await sb.from("profiles").upsert(row);
  if(error){Q.err="No se ha podido guardar: "+error.message;cuestionario();return}
- D.name=v.nombre;D.tono=v.tono;D.motivo=v.motivo;D.prof={h:String(v.altura),a:String(v.edad),s:v.sexo};D.modo=goal;D.nivel=v.nivel;D.cuest=cu;D.riesgo=riesgo;if(row.deficit_kcal)D.def=300;
+ D.name=v.nombre;D.tono=v.tono;D.motivo=v.motivo;D.prof={h:String(v.altura),a:String(v.edad),s:v.sexo};D.modo=goal;D.nivel=v.nivel;D.cuest=cu;D.riesgo=riesgo;
  try{await addW(v.peso)}catch(e){}
  Q.fin=true;cuestionario()}
 function confirmaQ(){const N=NIV[Q.v.nivel];return '<div style="text-align:center;padding:24px 0 8px"><div style="font-size:48px">'+N.e+'</div><h2 style="margin:8px 0 4px">Antes de empezar</h2></div><div class="card">Has elegido el modo <b>'+N.n+'</b>, que muestra números. Recuerda que <b>puedes ocultarlos cuando quieras</b> con el botón del ojo de arriba, y <b>cambiar de modo en cualquier momento</b> desde tu perfil. Tómate el tiempo que necesites. 💚</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:16px"><button class="btn" onclick="confirmaSi()">Entendido, empezar con este modo</button><button class="btn o" onclick="confirmaHab()">Mejor empiezo con Hábitos 🎒</button><button class="btn o" onclick="confirmaAtras()">Volver a elegir</button></div>'}
@@ -449,20 +452,20 @@ let TABACT=4,CHK="";
 const oculto=()=>D.nivel==="habitos"||!!(D.cuest&&D.cuest.ocultar);
 const modoNum=()=>D.nivel!=="habitos";
 const kc=n=>oculto()?"···":fmt(n);
-const maskT=t=>oculto()?String(t).replace(/[+−-]?≈?[\d.,]+(?=\s*kcal)/g,"···"):t;
+const maskT=t=>!modoNum()?habT(t):oculto()?String(t).replace(/[+−-]?≈?[\d.,]+(?=\s*kcal)/g,"···"):t;
 const AVISO_OBJ="Con este objetivo, tu ingesta quedaría por debajo de tu metabolismo basal. No es lo más recomendable: puedes suavizar el déficit o sumar movimiento. Tú decides y, si quieres, un profesional puede orientarte.";
 const AVISO_BAJA="Estos últimos días tu ingesta ha estado por debajo de tu metabolismo basal. Puede que no hayas anotado todo. Si es real, comer tan poco no se recomienda: cuídate, y si te cuesta, puedes ocultar los números o pasar a Hábitos.";
 function gastoTipico(){let t=0,n=0;for(let k=1;k<=7;k++){const d=day(daysAgo(k));if(d.i>0){t+=d.out;n++}}return n?t/n:0}
 function avisoObjetivo(){const b=bmr();if(!b)return false;
  if(D.goal)return D.goal<b;
- if(D.def!=null&&D.modo==="deficit"){const g=gastoTipico();return g>0&&g-D.def<b}
+ const dE=defE();if(dE!=null&&D.modo==="deficit"){const g=gastoTipico();return g>0&&g-dE<b}
  return false}
 function ingestaBaja(){const b=bmr();if(!b)return false;for(let k=1;k<=3;k++){const d=day(daysAgo(k));if(!(d.i>0&&d.i<b))return false}return true}
 async function guardarCuest(){await sb.from("profiles").upsert({user_id:uid,cuestionario:D.cuest})}
-function actualizaOjo(){const b=$("#ojo");if(!b)return;const h=!!(D.cuest&&D.cuest.ocultar);b.style.display=(D.nivel&&D.nivel!=="habitos")?"flex":"none";b.innerHTML=ico(h?"eyeoff":"eye","currentColor",24);if(b.setAttribute)b.setAttribute("aria-label",h?"Mostrar números":"Ocultar números")}
+function actualizaOjo(){renderMenu();const b=$("#ojo");if(!b)return;const h=!!(D.cuest&&D.cuest.ocultar);b.style.display=(D.nivel&&D.nivel!=="habitos")?"flex":"none";b.innerHTML=ico(h?"eyeoff":"eye","currentColor",24);if(b.setAttribute)b.setAttribute("aria-label",h?"Mostrar números":"Ocultar números")}
 async function alternaNum(){D.cuest=D.cuest||{};D.cuest.ocultar=!D.cuest.ocultar;await guardarCuest();actualizaOjo();if(TABACT===0)draw();else tab(TABACT)}
 async function cambiarNivel(k){D.nivel=k;const r=await sb.from("profiles").upsert({user_id:uid,modo:k,modo_desde:new Date().toISOString()});CHK="";actualizaOjo();inicio()}
-function avisosHtml(){let h="";if(modoNum()&&ingestaBaja())h+='<div class="card" style="margin-top:14px">'+AVISO_BAJA+'</div>';if(modoNum()&&avisoObjetivo())h+='<div class="card" style="margin-top:14px">'+AVISO_OBJ+'</div>';return h}
+function avisosHtml(){let h="";if(!modoNum()){const o=semHab();h+='<div class="card" style="margin-top:14px">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div>'}if(modoNum()&&ingestaBaja())h+='<div class="card" style="margin-top:14px">'+AVISO_BAJA+'</div>';if(modoNum()&&avisoObjetivo())h+='<div class="card" style="margin-top:14px">'+AVISO_OBJ+'</div>';return h}
 function tocaCheckin(){if(!D.nivel||D.nivel==="habitos")return false;const c=D.cuest||{},ref=c.checkin_ultimo||D.modoDesde||D.creado;if(!ref)return false;
  if(c.checkin_snooze&&today()<c.checkin_snooze)return false;return (Date.now()-new Date(ref))/864e5>=21}
 function checkinHtml(){
@@ -473,6 +476,48 @@ function checkinHtml(){
 async function checkinR(r){D.cuest=D.cuest||{};D.cuest.checkin_ultimo=today();D.cuest.checkin_resp=r;await guardarCuest();CHK=r==="bien"?"bien":"mal";inicio()}
 async function ahoraNo(){D.cuest=D.cuest||{};const d=new Date();d.setDate(d.getDate()+7);D.cuest.checkin_snooze=iso(d);await guardarCuest();inicio()}
 async function pausarNum(){D.cuest=D.cuest||{};D.cuest.ocultar=true;await guardarCuest();CHK="";actualizaOjo();inicio()}
+// ---------- MODOS: Hábitos y Guiado ----------
+const TAM={pequeno:["pequena",.7],pequena:["pequena",.7],pequenos:["pequena",.7],pequenas:["pequena",.7],chico:["pequena",.7],chica:["pequena",.7],grande:["grande",1.4],grandes:["grande",1.4],gran:["grande",1.4],normal:["normal",1],mediano:["normal",1],mediana:["normal",1]};
+const TAMN={pequena:"pequeña",normal:"normal",grande:"grande"};
+// grupo: [nombre, kcal por 100 g aprox., gramos de una ración] (valores internos; en Hábitos no se muestran)
+const GR={verdura:["Verdura",30,150],fruta:["Fruta",55,150],proteina:["Proteína",170,120],cereal:["Cereal, pan o pasta",150,150],legumbre:["Legumbre",120,200],lacteo:["Lácteo",70,125],grasa:["Grasa o frutos secos",600,20],dulce:["Dulce",400,30],ultraprocesado:["Ultraprocesado",350,60],bebida:["Bebida",40,200],plato:["Plato combinado",160,300]};
+const GBTN=()=>Object.keys(GR).map(k=>({name:"Anotar como: "+GR[k][0],kcal_100g:GR[k][1],portion_g:GR[k][2],portion_name:"ración",aprox:true,grupo:k}));
+const habT=t=>{const r=String(t).split("\n").filter(l=>!/^(Hoy|\d\d-\d\d):/.test(l)).map(l=>l.replace(/\s*→\s*≈?(?:···|[\d.,]+)\s*kcal(?: gastadas)?/g," ✓").replace(/\s*\((?:[+−-]?[\d.,]+|···) kcal\)/g,"").replace(/\s*\([^)]*estimado[^)]*\)/g,"")).join("\n").trim();return r||"¡Anotado! 🌱"};
+function habRegistro(h){return h.replace(/<div class="cards">.*?<\/b><\/div><\/div>/s,"").replace(/<p class="hint">Gasto = basal.*?<\/p>/s,"").replace(/(<\/small><\/div><div>)(?:−)?(?:···|[\d.,]+) kcal /g,"$1")}
+function semHab(){const o={dias:0,mov:0,ver:0,fru:0,ult:0,pT:0,pD:0};
+ for(let k=0;k<7;k++){const dd=daysAgo(k),E=D.log.filter(e=>e.d===dd&&!PEND.has(e.t+":"+e.id));
+  if(E.length||D.weights.some(w=>w.d===dd))o.dias++;
+  if(E.some(e=>e.t==="act"))o.mov++;
+  E.forEach(e=>{if(e.t==="food"){const r=e.rc||1;if(e.g==="verdura")o.ver+=r;else if(e.g==="fruta")o.fru+=r;else if(e.g==="ultraprocesado")o.ult+=r}
+   else{const m=/^([\d.]+) pasos$/.exec(e.txt);if(m){o.pT+=parseInt(m[1].replace(/\./g,""));o.pD++}}})}
+ return o}
+function balanceHab(){const o=semHab(),L=[];
+ if(!o.dias)return["Aún no hay registros esta semana: empieza cuando quieras, cada paso cuenta 🌱"];
+ L.push((o.dias>=5?"Muy buena constancia":o.dias>=3?"Buena constancia":"Vas empezando")+": has registrado "+o.dias+" de 7 días 🌱");
+ L.push(o.mov>=3?"Te has movido "+o.mov+" días 💪":o.mov>0?"Te has movido "+o.mov+" día"+(o.mov>1?"s":"")+": un paseo más sumaría 🚶":"Todavía no hay movimiento esta semana: un paseo corto ya cuenta 🚶");
+ if(o.pD){const m=o.pT/o.pD;L.push(m>=8000?"Tus pasos van muy bien 👟":m>=6000?"Buen ritmo de pasos 👟":"Hay margen para caminar un poco más 👟")}
+ L.push(o.ver>=10?"Mucha verdura esta semana 🥗":o.ver>=5?"Buena presencia de verdura 🥗":"Poca verdura anotada: ¿añadimos una ración hoy? 🥗");
+ L.push(o.fru>=7?"Fruta casi a diario 🍎":o.fru>=3?"Algo de fruta, ¡bien! 🍎":"Podrías sumar algo de fruta esta semana 🍎");
+ if(o.ult>=6)L.push("Han salido bastantes ultraprocesados: no pasa nada, la semana que viene puedes alternarlos con algo fresco 🌱");
+ return L}
+const balanceTxt=()=>["Balance de la semana:"].concat(balanceHab().map(x=>"• "+x)).join("\n");
+function evolHabitos(ops){const o=semHab();
+ return'<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select><h3>Evolución del peso</h3>'+chart()+'<h3>Tu constancia</h3><div class="card">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div><h3>Balance de la semana</h3><div class="card">'+balanceHab().map(x=>'<p style="margin:4px 0">'+x+'</p>').join("")+'</div>'}
+function tdee(){const b=bmr();if(!b)return 0;const c=(D.cuest&&D.cuest.contexto)||{};const base={sentado:1.2,mixto:1.3,activo:1.4}[c.trabajo]||1.3,dep={"0":0,"1-2":.05,"3-4":.1,"5+":.15}[c.deporte]||0,pas=c.pasos==="muchos"?.05:0;return b*Math.min(base+dep+pas,1.7)}
+function propGuiado(){const T=tdee(),b=bmr();if(!T)return null;
+ if(D.modo!=="deficit"||(D.cuest&&D.cuest.sin_deficit))return{lo:0,hi:0,p:0,T:Math.round(T),sin:true};
+ let lo=Math.max(.10*T,275),hi=Math.min(.20*T,550);if(lo>hi)lo=hi=.20*T;hi=Math.min(hi,T-b);if(hi<=0)return{lo:0,hi:0,p:0,T:Math.round(T),sin:true};lo=Math.min(lo,hi);
+ return{lo:Math.round(lo),hi:Math.round(hi),p:Math.round((lo+hi)/2),T:Math.round(T)}}
+const defE=()=>{if(D.nivel==="guiado"){const g=propGuiado();if(!g||g.sin)return null;const v=D.def!=null?D.def:g.p;return Math.min(Math.max(v,g.lo),g.hi)}return D.modo==="mantenimiento"?null:D.def};
+function guiadoCard(){const g=propGuiado();
+ if(!g)return'<div class="card" style="margin-top:10px">🧭 Completa tu peso, altura y edad para que podamos proponerte un objetivo.</div>';
+ if(g.sin)return'<div class="card" style="margin-top:10px">🧭 En tu caso no proponemos déficit: te acompañamos con mantenimiento.</div>';
+ return'<div class="card" style="margin-top:10px">🧭 <b>Tu objetivo propuesto:</b> un déficit de <b>'+g.p+' kcal al día</b> (unos '+f2(g.p*7/7700)+' kg a la semana), sumando movimiento antes que recortando comida. Puedes ajustarlo entre '+g.lo+' y '+g.hi+' en «Déficit diario objetivo»; si lo dejas vacío, usamos la propuesta.</div>'}
+function quitaCampo(X,id){return X.replace(new RegExp('<label>(?:(?!</label>)[\\s\\S])*?id="'+id+'"(?:(?!</label>)[\\s\\S])*?</label>'),"")}
+function perfilPorModo(X){
+ if(D.nivel==="habitos"){for(const id of["gk","df","dw","bm","sk"])X=quitaCampo(X,id)}
+ else if(D.nivel==="guiado"){for(const id of["gk","dw","bm"])X=quitaCampo(X,id);X=X.replace('<h3>Perfil',guiadoCard()+'<h3>Perfil')}
+ return X}
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
 function inicio(){
@@ -500,7 +545,7 @@ function hoy(){const d=day(RDIA),esHoy=RDIA===today(),n=PEND.size;
  '<div class="cards"><div class="card"><small>Ingesta</small><b>'+kc(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+kc(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+kc(d.bal)+'</b></div></div>'+enlaceInfo()+(modoNum()&&ingestaBaja()?'<div class="card" style="margin-bottom:10px">'+AVISO_BAJA+'</div>':"")+
  '<p class="hint">Gasto = basal ('+kc(d.b)+') + actividad ('+kc(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Perfil para calcular el basal")+'.</p><h3>Registro '+(esHoy?"de hoy":"del "+fecha)+'</h3>'+
  (n?'<div class="card" style="border-color:var(--ac);margin-bottom:10px"><b>'+n+' cambio'+(n>1?"s":"")+' sin guardar</b><div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="guardarReg()">Guardar cambios</button><button class="btn o" onclick="deshacerReg()">Deshacer cambios</button></div></div>':"")+(RMSG?'<p class="hint">'+RMSG+'</p>':"")+
- (D.log.filter(e=>e.d===RDIA).map(e=>{const q=PEND.has(pk(e.t,e.id));return'<div class="row" style="'+(q?"opacity:.5":"")+'"><div style="'+(q?"text-decoration:line-through":"")+'">'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':"")+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+kc(e.kcal)+' kcal '+(q?'<button class="btn o" style="padding:4px 8px" onclick="restaura(\''+e.t+'\','+e.id+')">Restaurar</button>':'<button class="x" onclick="marca(\''+e.t+'\','+e.id+')">×</button>')+'</div></div>'}).join("")||'<p class="hint">No hay registros este día.</p>')}
+ (D.log.filter(e=>e.d===RDIA).map(e=>{const q=PEND.has(pk(e.t,e.id));return'<div class="row" style="'+(q?"opacity:.5":"")+'"><div style="'+(q?"text-decoration:line-through":"")+'">'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':"")+'<br><small>'+(e.t==="food"?"Comida"+(!modoNum()&&e.g&&GR[e.g]?" · "+GR[e.g][0]:""):"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+kc(e.kcal)+' kcal '+(q?'<button class="btn o" style="padding:4px 8px" onclick="restaura(\''+e.t+'\','+e.id+')">Restaurar</button>':'<button class="x" onclick="marca(\''+e.t+'\','+e.id+')">×</button>')+'</div></div>'}).join("")||'<p class="hint">No hay registros este día.</p>');if(!modoNum())$("#c1").innerHTML=habRegistro($("#c1").innerHTML)}
 const PASO_Y=0; // 0 = escalones automáticos; pon 10 para escalones de 10 kg
 let CH=[];
 function tip(i){const x=CH[i];$("#tip").textContent=f2(x.w)+" kg · "+new Date(x.d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"long"});document.querySelectorAll(".pt").forEach((c,j)=>c.setAttribute("r",j===i?6:3.5))}
@@ -527,29 +572,32 @@ function setPer(v){PSEL=v;PER=v==="w"?new Date().getDay()+1:+v;datos()}
 function datos(){const p=D.prof,P=periodo(PER);let h7="";
  for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+kc(d.i)+"</td><td>"+kc(d.out)+"</td><td>"+(d.bal>0?"+":"")+kc(d.bal)+"</td></tr>"}
  const ops=[[1,"Hoy"],["w","Esta semana (dom–hoy)"],[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(String(o[0])===PSEL?" selected":"")+'>'+o[1]+'</option>').join("");
- const X=(faltan().length?'<div class="card" style="border-color:var(--bad);margin-top:10px">Faltan datos obligatorios: <b>'+faltan().join(", ")+'</b>. Los necesitamos para calcular tu gasto.</div>':"")+(modoNum()&&avisoObjetivo()?'<div class="card" style="margin-top:10px">'+AVISO_OBJ+'</div>':"")+'<div class="card" style="margin-top:10px">'+(D.nivel?NIV[D.nivel].e+' Modo actual: <b>'+NIV[D.nivel].n+'</b>':'Aún no has elegido modo')+' · <a href="#" onclick="abrirQ();return false" style="color:var(--ac)">Revisar mi cuestionario</a></div>'+'<h3>Perfil <span class="hint">(* obligatorio)</span></h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Peso de hoy (kg) *<input id="pw"'+req(lastW())+' value="'+(lastW()||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Altura (cm) *<input id="ph"'+req(p.h)+' value="'+esc(p.h)+'" oninput="marcar()" onchange="marcar()"></label><label>Edad *<input id="pa"'+req(p.a)+' value="'+esc(p.a)+'" oninput="marcar()" onchange="marcar()"></label><label>Sexo<select id="ps" oninput="marcar()" onchange="marcar()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>Objetivo *<select id="md"'+req(D.modo)+' oninput="marcar()" onchange="marcar()"><option value="">Elige…</option><option value="deficit"'+(D.modo==="deficit"?" selected":"")+'>Perder grasa (déficit)</option><option value="mantenimiento"'+(D.modo==="mantenimiento"?" selected":"")+'>Mantenerme</option><option value="superavit"'+(D.modo==="superavit"?" selected":"")+'>Ganar masa (superávit)</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" oninput="marcar()" onchange="marcar()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" oninput="marcar()" onchange="marcar()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" oninput="marcar()" onchange="marcar()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" oninput="marcar()" onchange="marcar()"></label></div>'+
+ let X=(faltan().length?'<div class="card" style="border-color:var(--bad);margin-top:10px">Faltan datos obligatorios: <b>'+faltan().join(", ")+'</b>. Los necesitamos para calcular tu gasto.</div>':"")+(modoNum()&&avisoObjetivo()?'<div class="card" style="margin-top:10px">'+AVISO_OBJ+'</div>':"")+'<div class="card" style="margin-top:10px">'+(D.nivel?NIV[D.nivel].e+' Modo actual: <b>'+NIV[D.nivel].n+'</b>':'Aún no has elegido modo')+' · <a href="#" onclick="abrirQ();return false" style="color:var(--ac)">Revisar mi cuestionario</a></div>'+'<h3>Perfil <span class="hint">(* obligatorio)</span></h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Peso de hoy (kg) *<input id="pw"'+req(lastW())+' value="'+(lastW()||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Altura (cm) *<input id="ph"'+req(p.h)+' value="'+esc(p.h)+'" oninput="marcar()" onchange="marcar()"></label><label>Edad *<input id="pa"'+req(p.a)+' value="'+esc(p.a)+'" oninput="marcar()" onchange="marcar()"></label><label>Sexo<select id="ps" oninput="marcar()" onchange="marcar()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>Objetivo *<select id="md"'+req(D.modo)+' oninput="marcar()" onchange="marcar()"><option value="">Elige…</option><option value="deficit"'+(D.modo==="deficit"?" selected":"")+'>Perder grasa (déficit)</option><option value="mantenimiento"'+(D.modo==="mantenimiento"?" selected":"")+'>Mantenerme</option><option value="superavit"'+(D.modo==="superavit"?" selected":"")+'>Ganar masa (superávit)</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" oninput="marcar()" onchange="marcar()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" oninput="marcar()" onchange="marcar()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" oninput="marcar()" onchange="marcar()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" oninput="marcar()" onchange="marcar()"></label></div>'+
  '<div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" onclick="guardar()">Guardar</button><span id="gmsg" class="hint"></span></div>'+'<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
  '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+kc(Math.abs(P.def))+' kcal</b></div>'+enlaceInfo()+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
  '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
- '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span>';const a=X.indexOf('<h3>Periodo</h3>'),b=X.indexOf('<h3>Importar pesos</h3>');$("#c2").innerHTML=X.slice(0,a)+X.slice(b);$("#c6").innerHTML=X.slice(a,b)}
+ '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span>';X=perfilPorModo(X);const a=X.indexOf('<h3>Periodo</h3>'),b=X.indexOf('<h3>Importar pesos</h3>');$("#c2").innerHTML=X.slice(0,a)+X.slice(b);$("#c6").innerHTML=modoNum()?X.slice(a,b):evolHabitos(ops)}
 const CAMPOS=[["pw","Peso (kg)",20,400,1],["ph","Altura (cm)",100,250,1],["pa","Edad",10,110,1],["sk","kcal por paso",0.01,0.5,0],["gk","Objetivo fijo de ingesta",500,10000,0],["df","Déficit/superávit diario",0,2000,0],["dw","Déficit/superávit semanal",0,14000,0],["bm","Metabolismo basal manual",500,4000,0],["wg","Peso objetivo",30,300,0]];
 function marcar(){const m=$("#gmsg");m.textContent="Hay cambios sin guardar";m.style.color="var(--mu)"}
 async function guardar(){
  const m=$("#gmsg"),err=[];
- for(const[id,lb,mn,mx,rq] of CAMPOS){const v=$("#"+id).value.trim(),n=num(v);let bad=false;
+ for(const[id,lb,mn,mx,rq] of CAMPOS){const el=$("#"+id);if(!el)continue;const v=el.value.trim(),n=num(v);let bad=false;
   if(v===""){if(rq){bad=true;err.push(lb+": obligatorio")}}
   else if(!(n>=mn&&n<=mx)){bad=true;err.push(lb+": debe ser un número entre "+mn+" y "+mx)}
   $("#"+id).className=bad?"falta":""}
+ if(D.nivel==="guiado"&&$("#df")&&$("#df").value.trim()!==""){const g=propGuiado(),n=num($("#df").value);if(g&&!g.sin&&!(n>=g.lo&&n<=g.hi)){err.push("Déficit diario: en modo Guiado debe estar entre "+g.lo+" y "+g.hi);$("#df").className="falta"}}
  if(!$("#md").value){err.push("Objetivo: obligatorio");$("#md").className="falta"}else $("#md").className="";
  if(err.length){m.textContent="No se ha guardado. "+err.join(" · ");m.style.color="var(--bad)";return}
  m.textContent="Guardando…";m.style.color="var(--mu)";
  try{await setP();datos();const g=$("#gmsg");g.textContent="Guardado correctamente ✓";g.style.color="var(--ac)"}
  catch(e){m.textContent="Error al guardar: "+(e.message||e);m.style.color="var(--bad)"}}
 async function setP(){
- D.prof={h:$("#ph").value,a:$("#pa").value,s:$("#ps").value};D.stepK=num($("#sk").value)||0.075;D.goal=num($("#gk").value)||null;
- D.def=$("#df").value.trim()===""?null:num($("#df").value);D.defw=$("#dw").value.trim()===""?null:num($("#dw").value);D.basal=num($("#bm").value)||null;D.wgoal=num($("#wg").value)||null;D.name=$("#nm").value.trim();D.modo=$("#md").value;
+ const V=(id,d)=>{const e=$("#"+id);return e?e.value:d};
+ D.prof={h:V("ph",D.prof.h),a:V("pa",D.prof.a),s:V("ps",D.prof.s)};D.stepK=num(V("sk",D.stepK))||0.075;D.goal=num(V("gk",D.goal))||null;
+ const dfv=String(V("df",D.def==null?"":D.def)).trim(),dwv=String(V("dw",D.defw==null?"":D.defw)).trim();
+ D.def=dfv===""?null:num(dfv);D.defw=dwv===""?null:num(dwv);D.basal=num(V("bm",D.basal))||null;D.wgoal=num(V("wg",D.wgoal))||null;D.name=String(V("nm",D.name||"")).trim();D.modo=V("md",D.modo);
  const{error}=await sb.from("profiles").upsert({user_id:uid,height_cm:num(D.prof.h)||null,age:num(D.prof.a)||null,sex:D.prof.s,step_kcal:D.stepK,goal_kcal:D.goal,deficit_kcal:D.def,deficit_week_kcal:D.defw,basal_kcal:D.basal,weight_goal:D.wgoal,name:D.name||null,goal_mode:D.modo||null});
  if(error)throw error;
- const w=num($("#pw").value);if(w&&w!==lastW())await addW(w);
+ const w=num(V("pw",""));if(w&&w!==lastW())await addW(w);
  if(D.def>600)alert(AVISO)}
 </script></body></html>
