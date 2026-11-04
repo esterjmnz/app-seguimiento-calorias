@@ -45,7 +45,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 <input id="em" type="email" placeholder="Email" autocomplete="email"><input id="pw0" type="password" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="current-password">
 <button class="btn" onclick="login(false)">Entrar</button><button class="btn o" onclick="login(true)">Crear cuenta</button><div id="aerr" class="hint" style="color:var(--bad)"></div></div>
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
-<header id="top"><div style="display:flex;align-items:center;gap:10px"><button onclick="tab(0)" aria-label="Ir al chat" style="background:none;border:0;color:var(--ac);padding:4px;display:flex"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></button><span style="width:1px;height:24px;background:var(--bd)"></span><b id="ptitle" style="font-size:17px;display:flex;align-items:center;gap:8px">FitnessJourney</b></div><button id="mbtn" onclick="menu()" aria-label="Menú"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></header>
+<header id="top"><div style="display:flex;align-items:center;gap:10px"><button onclick="tab(0)" aria-label="Ir al chat" style="background:none;border:0;color:var(--ac);padding:4px;display:flex"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></button><span style="width:1px;height:24px;background:var(--bd)"></span><b id="ptitle" style="font-size:17px;display:flex;align-items:center;gap:8px">FitnessJourney</b></div><div style="display:flex;align-items:center"><button id="ojo" onclick="alternaNum()" aria-label="Ocultar números" style="background:none;border:0;color:var(--tx);padding:6px;display:none"></button><button id="mbtn" onclick="menu()" aria-label="Menú"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div></header>
 <div id="menu" style="display:none" onclick="this.style.display='none'"><nav id="navm" onclick="event.stopPropagation()"></nav></div>
 <section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off" enterkeyhint="send"><button class="btn" onclick="send()">Enviar</button></div></section>
 <main id="c4"></main><main id="c5" style="display:none"></main><main id="c6" style="display:none"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
@@ -83,7 +83,7 @@ async function load(){
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
  D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal,est:!!r.estimated})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));
- const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modo=p.goal_mode||"";D.nivel=p.modo||"";D.tono=p.tono||"";D.motivo=p.motivo||"";D.cuest=p.cuestionario||{};D.riesgo=!!p.riesgo_bienestar}
+ const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modoDesde=p.modo_desde||"";D.creado=p.creado_en||"";D.modo=p.goal_mode||"";D.nivel=p.modo||"";D.tono=p.tono||"";D.motivo=p.motivo||"";D.cuest=p.cuestionario||{};D.riesgo=!!p.riesgo_bienestar}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
 const palabras=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w&&!STOP.has(w));
@@ -143,7 +143,7 @@ async function quitar(n,dia){
  if(!e)return"No he encontrado «"+words.join(" ")+"» en ese día.";
  await sb.from(e.t==="food"?"food_log":"activity_log").delete().eq("id",e.id);
  D.log=D.log.filter(x=>!(x.t===e.t&&x.id===e.id));
- return"Quitado: "+e.txt+" ("+fmt(e.kcal)+" kcal).";
+ return"Quitado: "+e.txt+" ("+kc(e.kcal)+" kcal).";
 }
 function fragmentos(s){
  const KC=/\d\s*(kcal|calorias?|cal)\b/,out=[];
@@ -189,11 +189,11 @@ async function estimar(r){
  if(!x)return null;
  const tot=r.G?x.k*r.G/100:(x.p?x.k*x.p/100*r.q:x.k*r.q);
  return{kcal:tot,desc:(r.G?r.G+" g":r.q+" × "+(x.u||"100 g"))+" de "+r.name+" (aprox.)",name:r.name,est:true,save:false}}
-function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+fmt(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
+function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+kc(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+kc(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
 function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
- if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Perfil para calcular cuántas te quedan.";
+ if(!m)return et+": "+kc(d.i)+" kcal ingeridas. Completa tu perfil en Perfil para calcular cuántas te quedan.";
  const q=m.l-d.i;
- return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."+(d.b&&m.l<d.b?" Ojo: ese límite está por debajo de tu metabolismo basal ("+fmt(d.b)+"); no se recomienda comer tan poco.":"")+EST(dia)}
+ return et+": "+kc(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+kc(q):"Te has pasado "+kc(-q))+" kcal para "+m.t+" (límite del día: "+kc(m.l)+")."+(modoNum()&&avisoObjetivo()?" Ojo: con este objetivo quedarías por debajo de tu metabolismo basal; no es lo más recomendable.":"")+EST(dia)}
 async function setCol(col,key,v){D[key]=v;await sb.from("profiles").upsert({user_id:uid,[col]:v})}
 const setGoal=g=>setCol("goal_kcal","goal",g);
 function rep(t,re,fn){let m;while((m=re.exec(norm(t)))){t=t.slice(0,m.index)+fn(m)+t.slice(m.index+m[0].length)}return t}
@@ -213,15 +213,15 @@ function semana(off){const h=new Date();h.setHours(12,0,0,0);const ini=new Date(
  let acc=0,nd=0;const L=[];
  for(let k=0;k<7;k++){const d=new Date(ini);d.setDate(ini.getDate()+k);const dd=iso(d);if(dd>today())break;const r=day(dd);
   if(r.i>0){acc+=r.i-r.out;nd++}
-  L.push(d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric"})+": "+(r.i>0?fmt(r.i)+" ingeridas · gasto "+fmt(r.out)+" · balance "+(r.bal>0?"+":"")+fmt(r.bal):"sin registro"))}
+  L.push(d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric"})+": "+(r.i>0?kc(r.i)+" ingeridas · gasto "+kc(r.out)+" · balance "+(r.bal>0?"+":"")+kc(r.bal):"sin registro"))}
  return{L,acc,nd,ini:iso(ini)}}
 function resSemana(off){const a=semana(off),o=semana(off+1),obj=D.defw!=null?D.defw:(D.def!=null?D.def*7:null);
- return["Semana desde "+a.ini.slice(5)+":"].concat(a.L,["Acumulado: "+(a.acc>0?"+":"")+fmt(a.acc)+" kcal en "+a.nd+" días"+(obj!=null?" (objetivo semanal: "+(D.modo==="superavit"?"+":"−")+fmt(obj)+")":"")+".","Semana anterior: "+(o.acc>0?"+":"")+fmt(o.acc)+" kcal."]).join("\n")}
+ return["Semana desde "+a.ini.slice(5)+":"].concat(a.L,["Acumulado: "+(a.acc>0?"+":"")+kc(a.acc)+" kcal en "+a.nd+" días"+(obj!=null?" (objetivo semanal: "+(D.modo==="superavit"?"+":"−")+kc(obj)+")":"")+".","Semana anterior: "+(o.acc>0?"+":"")+kc(o.acc)+" kcal."]).join("\n")}
 function nota(){const P=periodo(PER),a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);
- let t="Seguimiento de peso y calorías\nPeriodo: "+a+" a "+today()+"\n\nObjetivos\n"+(D.wgoal?"- Peso objetivo: "+f2(D.wgoal)+" kg\n":"")+(D.def!=null?"- Déficit diario: "+fmt(D.def)+" kcal\n":"")+(D.defw!=null?"- Déficit semanal: "+fmt(D.defw)+" kcal\n":"")+(D.goal?"- Ingesta objetivo: "+fmt(D.goal)+" kcal\n":"");
+ let t="Seguimiento de peso y calorías\nPeriodo: "+a+" a "+today()+"\n\nObjetivos\n"+(D.wgoal?"- Peso objetivo: "+f2(D.wgoal)+" kg\n":"")+(D.def!=null?"- Déficit diario: "+kc(D.def)+" kcal\n":"")+(D.defw!=null?"- Déficit semanal: "+kc(D.defw)+" kcal\n":"")+(D.goal?"- Ingesta objetivo: "+kc(D.goal)+" kcal\n":"");
  t+="\nEvolución del peso\n"+(w.map(x=>x.d+": "+f2(x.w)+" kg").join("\n")||"sin registros")+"\n\nBalance por día (ingesta / gasto / balance)\n";
- for(let k=PER-1;k>=0;k--){const dd=daysAgo(k),r=day(dd);if(r.i>0)t+=dd+": "+fmt(r.i)+" / "+fmt(r.out)+" / "+(r.bal>0?"+":"")+fmt(r.bal)+"\n"}
- return t+"\nAcumulado del periodo: "+(P.def>0?"déficit ":"superávit ")+fmt(Math.abs(P.def))+" kcal en "+P.nc+" días\n"}
+ for(let k=PER-1;k>=0;k--){const dd=daysAgo(k),r=day(dd);if(r.i>0)t+=dd+": "+kc(r.i)+" / "+kc(r.out)+" / "+(r.bal>0?"+":"")+kc(r.bal)+"\n"}
+ return t+"\nAcumulado del periodo: "+(P.def>0?"déficit ":"superávit ")+kc(Math.abs(P.def))+" kcal en "+P.nc+" días\n"}
 async function copiar(){const t=nota();$("#nota").value=t;try{await navigator.clipboard.writeText(t);$("#notamsg").textContent="Copiado."}catch(e){$("#notamsg").textContent="Selecciona el texto y cópialo."}}
 async function importarPesos(){let n=0;
  for(const l of $("#imp").value.split("\n")){const[fd,r]=fecha(pal2num(l)),m=r.match(/(\d{2,3})(?:[.,](\d{1,2}))?\s*(kg)?\s*\|?\s*$/);if(fd&&m){await addW(+(m[1]+"."+(m[2]||0)),fd);n++}}
@@ -233,15 +233,15 @@ async function consulta(s){
   const r=parseFood(it);
   if(r.err||r.unknown){
    const e=r.unknown&&palabras(it).length<=3?await estimar(r):null;
-   if(e){tot+=e.kcal;it2.push(e);L.push("• "+e.desc+" → ≈"+fmt(e.kcal)+" kcal");continue}
+   if(e){tot+=e.kcal;it2.push(e);L.push("• "+e.desc+" → ≈"+kc(e.kcal)+" kcal");continue}
    if(palabras(it).length<=2)L.push("No conozco «"+(r.name||it.trim())+"». Dime sus calorías, por ejemplo: «"+(r.name||"alimento")+" 120 kcal».");
    continue}
-  tot+=r.kcal;it2.push(r);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
+  tot+=r.kcal;it2.push(r);L.push("• "+r.desc+" → "+kc(r.kcal)+" kcal")}
  D.foods=JSON.parse(bak);ULT=it2.length?{items:it2,dia}:null;
- L.push("Total: "+fmt(tot)+" kcal"+(it2.some(x=>x.est)?" (incluye valores aproximados)":"")+" · no guardado; di «añade eso» para registrarlo.");
+ L.push("Total: "+kc(tot)+" kcal"+(it2.some(x=>x.est)?" (incluye valores aproximados)":"")+" · no guardado; di «añade eso» para registrarlo.");
  const d=day(dia),m=metaDia(d),pr=d.i+tot-d.out;
- if(d.out)L.push("Previsión: llevas "+fmt(d.i)+" + esto "+fmt(tot)+" = "+fmt(d.i+tot)+" kcal. Gasto estimado "+fmt(d.out)+" → balance previsto "+(pr>0?"+":"")+fmt(pr)+(D.def!=null?" (objetivo −"+fmt(D.def)+")":"")+".");
- if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+fmt(m.l-d.i-tot):"Te pasarías en "+fmt(d.i+tot-m.l))+" kcal para "+m.t+".");
+ if(d.out)L.push("Previsión: llevas "+kc(d.i)+" + esto "+kc(tot)+" = "+kc(d.i+tot)+" kcal. Gasto estimado "+kc(d.out)+" → balance previsto "+(pr>0?"+":"")+kc(pr)+(D.def!=null?" (objetivo −"+kc(D.def)+")":"")+".");
+ if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+kc(m.l-d.i-tot):"Te pasarías en "+kc(d.i+tot-m.l))+" kcal para "+m.t+".");
  else L.push("Completa tu perfil en Perfil para saber si encaja en el día.");
  return L}
 function periodo(n){const r={i:0,b:0,p:0,o:0,def:0,nc:0};
@@ -256,7 +256,7 @@ async function handle(text){
  const n0=norm(s);
  if(ULT&&/\b(anade|apunta|registra|anota|guarda|agrega)\b.*\b(eso|esto|todo|lo anterior)\b/.test(n0)){
   const U=ULT;ULT=null;const L=["Registrado:"];
-  for(const r of U.items){if(r.save){D.foods[r.name]=r.f;await saveFood(r.f,r.name)}await add("food",r.desc,r.kcal,null,U.dia,r.est);L.push("• "+r.desc+" → "+fmt(r.kcal)+" kcal")}
+  for(const r of U.items){if(r.save){D.foods[r.name]=r.f;await saveFood(r.f,r.name)}await add("food",r.desc,r.kcal,null,U.dia,r.est);L.push("• "+r.desc+" → "+kc(r.kcal)+" kcal")}
   const k=n0.search(/\s(y|ademas)\s/),rest=k>0?s.slice(k).replace(/^\s*(y|ademas)\s+/i,""):"";
   if(rest.trim())return L.concat(await handle(rest));
   return L.concat([resumen(U.dia)])}
@@ -278,31 +278,31 @@ async function handle(text){
   if(ds.size>1&&fd)cur=fd;
   if(!palabras(it).length)continue;
   if(!it.trim())continue;const n=norm(it);let m;const sf=cur!==today()?" ("+cur.slice(5)+")":"";
-  if(m=n.match(/(\d[\d.]*)\s*pasos?/)){const st=parseInt(m[1].replace(/\./g,"")),c=st*D.stepK;await add("act",fmt(st)+" pasos",c,st,cur);out.push("Pasos: "+fmt(st)+" → "+fmt(c)+" kcal gastadas"+sf);continue}
+  if(m=n.match(/(\d[\d.]*)\s*pasos?/)){const st=parseInt(m[1].replace(/\./g,"")),c=st*D.stepK;await add("act",fmt(st)+" pasos",c,st,cur);out.push("Pasos: "+fmt(st)+" → "+kc(c)+" kcal gastadas"+sf);continue}
   const act=findAct(n),kcm=n.match(/(\d+(?:[.,]\d+)?)\s*(?:kcal|calorias?|cal)\b/);
   if(act||(kcm&&/(quem|gast|entren|ejercicio)/.test(n))){
    let c,desc,h=null;
    if(m=n.match(/(\d+(?:[.,]\d+)?)\s*(?:h|hora|horas)\b/))h=num(m[1]);else if(m=n.match(/(\d+)\s*(?:min|minutos)\b/))h=num(m[1])/60;else if(/media hora/.test(n))h=.5;
    if(kcm){c=num(kcm[1]);desc=(act||"ejercicio")+(h?" "+f1(h)+" h":"")}
    else{h=h||1;c=D.acts[act].k*h;desc=act+" "+f1(h)+" h"}
-   await add("act",desc,c,null,cur);out.push("Ejercicio: "+desc+" → "+fmt(c)+" kcal gastadas"+sf);continue}
+   await add("act",desc,c,null,cur);out.push("Ejercicio: "+desc+" → "+kc(c)+" kcal gastadas"+sf);continue}
   const r=parseFood(it);
   if(r.err){out.push(r.err);continue}
   if(r.unknown){
    if(!OPTS){const res=await buscar(r.name);
     if(res.length){OPTS={items:res,pend:{...r,dia:cur}};out.push("No tengo «"+r.name+"» en tus alimentos. En el catálogo he encontrado esto, ¿cuál es?");continue}}
    if(!OPTS){const ap=await aproxFood(r.name);sinRes(r.name);
-    if(ap){OPTS={items:[{name:"Usar aproximado: "+ap.lab+" ≈ "+fmt(ap.k)+" kcal/100 g"+(ap.hi?" (rango "+fmt(ap.lo)+"–"+fmt(ap.hi)+")":""),kcal_100g:ap.k,portion_g:ap.p,portion_name:ap.u,aprox:true}],pend:{...r,dia:cur}};
+    if(ap){OPTS={items:[{name:"Usar aproximado: "+ap.lab+" ≈ "+kc(ap.k)+" kcal/100 g"+(ap.hi?" (rango "+kc(ap.lo)+"–"+kc(ap.hi)+")":""),kcal_100g:ap.k,portion_g:ap.p,portion_name:ap.u,aprox:true}],pend:{...r,dia:cur}};
      out.push("No tengo «"+r.name+"» exacto, ni la cantidad precisa. Si quieres, te doy un aproximado ("+ap.src+"; puede variar según la marca). "+(r.G?"":(ap.p?"Si no indicas cantidad, supondré 1 "+ap.u+" ("+ap.p+").":"Si no indicas cantidad, supondré 100 g."))+" ¿Lo uso?");continue}}
    out.push("No conozco «"+r.name+"». Dime sus calorías, por ejemplo: «"+r.name+" 120 kcal por 100 g» o «"+r.name+" 250 kcal».");continue}
   if(r.save)await saveFood(r.f,r.name);
-  await add("food",r.desc,r.kcal,null,cur);out.push(r.desc+" → "+fmt(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
+  await add("food",r.desc,r.kcal,null,cur);out.push(r.desc+" → "+kc(r.kcal)+" kcal"+(r.learned?" (alimento guardado)":"")+sf);
  }
  if(!OPTS)out.push(resumen(cur));
  return out}
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
-function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(m.t)+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+' · '+fmt(x.kcal_100g)+' kcal/100 g')+'</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguna: dar mis calorías</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
+function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(maskT(m.t))+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+' · '+kc(x.kcal_100g)+' kcal/100 g')+'</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguna: dar mis calorías</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
 async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";try{localStorage.removeItem("fj_borrador")}catch(e){}msgs.push({r:"u",t});
  try{const L=await handle(t);msgs.push({r:"b",t:L.join("\n"),opts:OPTS})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
 $("#in").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
@@ -321,25 +321,25 @@ async function pick(mi,i){
    const k=+x.kcal_100g,total=r.G?k*r.G/100:(x.portion_g?k*x.portion_g/100*r.q:k*r.q);
    const desc=r.G?r.G+" g de "+r.name+" (aprox.)":r.q+" × "+(x.portion_name||"100 g")+" de "+r.name+" (aprox.)";
    await add("food",desc,total,null,r.dia,true);
-   msgs.push({r:"b",t:desc+" → ≈"+fmt(total)+" kcal (estimado; no se guarda como alimento)\n"+resumen(r.dia||today())})
+   msgs.push({r:"b",t:desc+" → ≈"+kc(total)+" kcal (estimado; no se guarda como alimento)\n"+resumen(r.dia||today())})
   }else{
   const f=D.foods[r.name]={id:null,k:+x.kcal_100g,p:null,u:"ración",kp:null,own:true};
   const total=r.G?f.k*r.G/100:f.k*r.q;
   const desc=r.G?r.G+" g de "+r.name:r.q+" × 100 g de "+r.name;
   await saveFood(f,r.name,"mercadona");await add("food",desc,total,null,r.dia);
   const d=day(today());
-  msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})}
+  msgs.push({r:"b",t:desc+" → "+kc(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})}
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
+function tab(n){TABACT=n;actualizaOjo();$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
 let MIS=[];
 const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
  MIS=Object.keys(D.foods).filter(n=>D.foods[n].own).sort();
- $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input'+gris(f.k)+' value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input'+gris(f.p)+' value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input'+gris(f.kp)+' value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':fmt(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
+ $("#c3").innerHTML='<h3>Mis alimentos</h3><p class="hint">Los que has añadido tú. Puedes corregir los valores o borrarlos.</p>'+(MIS.length?'<div style="overflow-x:auto"><table><tr><th>Alimento</th><th>kcal/100 g</th><th>Ración (g)</th><th>kcal/ración</th><th></th></tr>'+MIS.map((n,i)=>{const f=D.foods[n];return'<tr><td>'+esc(n)+'</td><td><input'+gris(f.k)+' value="'+(f.k??"")+'" onchange="editF('+i+',\'k\',this.value)"></td><td><input'+gris(f.p)+' value="'+(f.p??"")+'" onchange="editF('+i+',\'p\',this.value)"></td><td>'+(f.k==null?'<input'+gris(f.kp)+' value="'+(f.kp??"")+'" onchange="editF('+i+',\'kp\',this.value)">':kc(unitK(f)))+'</td><td><button class="x" onclick="delF('+i+')">×</button></td></tr>'}).join("")+'</table></div>':'<p class="hint">Aún no has añadido ninguno. Escribe en el chat, por ejemplo: «yogur de arándanos con proteínas 65 kcal».</p>')}
 async function editF(i,c,v){const f=D.foods[MIS[i]];f[c]=v===""?null:num(v);if(f.id)await sb.from("foods").update({kcal_100g:f.k,portion_g:f.p,kcal_portion:f.kp}).eq("id",f.id);misAlimentos()}
 async function delF(i){const n=MIS[i],f=D.foods[n];if(f.id)await sb.from("foods").delete().eq("id",f.id);delete D.foods[n];misAlimentos()}
-const ICO={down:'<path d="M12 5v14M6 13l6 6 6-6"/>',up:'<path d="M12 19V5M6 11l6-6 6 6"/>',equal:'<path d="M5 9h14M5 15h14"/>',flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/>',steps:'<ellipse cx="8" cy="8" rx="2.5" ry="4"/><ellipse cx="16" cy="16" rx="2.5" ry="4"/>',dumbbell:'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',logout:'<path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H10"/>',home:'<path d="M4 11l8-7 8 7v9H4z"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/>',today:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',chart:'<path d="M4 20V4M4 20h16M8 16v-5M13 16V8M18 16v-9"/>',apple:'<path d="M12 8c-3-2-7 0-7 5 0 4 3 8 5 7 1-.5 1.5-.5 2 0 2 1 5-3 5-7 0-5-4-7-5-5z"/><path d="M12 8c0-2 1-3 3-4"/>'};
+const ICO={down:'<path d="M12 5v14M6 13l6 6 6-6"/>',up:'<path d="M12 19V5M6 11l6-6 6 6"/>',equal:'<path d="M5 9h14M5 15h14"/>',flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/>',steps:'<ellipse cx="8" cy="8" rx="2.5" ry="4"/><ellipse cx="16" cy="16" rx="2.5" ry="4"/>',dumbbell:'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',eyeoff:'<path d="M3 3l18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.7M6.6 6.6C3.6 8.5 2 12 2 12s4 7 10 7a9.8 9.8 0 0 0 4.4-1"/>',logout:'<path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H10"/>',home:'<path d="M4 11l8-7 8 7v9H4z"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/>',today:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',chart:'<path d="M4 20V4M4 20h16M8 16v-5M13 16V8M18 16v-9"/>',apple:'<path d="M12 8c-3-2-7 0-7 5 0 4 3 8 5 7 1-.5 1.5-.5 2 0 2 1 5-3 5-7 0-5-4-7-5-5z"/><path d="M12 8c0-2 1-3 3-4"/>'};
 const ico=(n,c,z)=>'<svg viewBox="0 0 24 24" width="'+(z||28)+'" height="'+(z||28)+'" fill="none" stroke="'+(c||"var(--ac)")+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none">'+ICO[n]+'</svg>';
 const MODOS={deficit:["down","Perder grasa","Déficit moderado y sostenible"],mantenimiento:["equal","Mantenerme","Comer lo que gasto"],superavit:["up","Ganar masa","Pequeño superávit (guía propia próximamente)"]};
 const AVISO="Un déficit de más de 600 kcal/día es grande. Lo habitual recomendado son 300–500 kcal/día y conviene conseguirlo sumando movimiento antes que comiendo menos. Si tienes dudas, consulta con un profesional sanitario.";
@@ -374,12 +374,12 @@ const TITQ={comun:"Cuéntanos sobre ti",bienestar:"Tu bienestar",modo:"Elige có
 // cada campo: [clave, pregunta, tipo (t texto, n número, s lista, x texto largo), obligatorio, opciones o rango]
 const QS={
  comun:[["nombre","Nombre","t",1],["tono","¿Cómo prefieres que te hablemos?","s",1,O("cercano|Cercano y cálido","directo|Directo y claro","motivador|Motivador","tranquilo|Tranquilo y sin presión")],["edad","Edad","n",1,[10,110]],["sexo","Sexo","s",1,O("f|Mujer","m|Hombre")],["altura","Altura (cm)","n",1,[100,250]],["peso","Peso actual (kg)","n",1,[20,400]],["objetivo","¿Qué quieres conseguir?","s",1,O("perder|Perder grasa","mantener|Mantenerme","ganar|Ganar masa")],["motivo","¿Qué te anima a empezar?","s",1,O("salud|Cuidar mi salud","energia|Tener más energía","estetica|Sentirme mejor con mi cuerpo","deporte|Mejorar en el deporte","otro|Otro motivo")]],
- bienestar:[["tca","¿Has tenido o tienes alguna dificultad con la comida (por ejemplo, un trastorno de la conducta alimentaria)?","s",1,O("no|No","si|Sí, la he tenido o la tengo","nsnc|Prefiero no decirlo")],["culpa","Cuando comes «de más», ¿cómo te sientes?","s",1,O("bien|Con tranquilidad","algo|Con algo de malestar o culpa","mucha|Con mucha culpa o angustia")],["embarazo","¿Estás embarazada o en lactancia?","s",1,O("no|No","embarazo|Embarazo","lactancia|Lactancia","nsnc|Prefiero no decirlo")],["medica","¿Tienes alguna condición médica relacionada con la alimentación (diabetes, tiroides, renal…)?","s",1,O("no|No","si|Sí","nsnc|Prefiero no decirlo")]],
+ bienestar:[["tca","¿Has tenido alguna dificultad con la comida (por ejemplo, un trastorno de la conducta alimentaria)?","s",1,O("no|No","pasado|Sí, en el pasado, y ahora estoy bien","si|Sí, y todavía me cuesta a veces","nsnc|Prefiero no responder")],["embarazo","¿Estás embarazada o en lactancia?","s",1,O("no|No","embarazo|Embarazo","lactancia|Lactancia","nsnc|Prefiero no decirlo")],["medica","¿Tienes alguna condición médica relacionada con la alimentación (diabetes, tiroides, renal…)?","s",1,O("no|No","si|Sí","nsnc|Prefiero no decirlo")]],
  contexto:[["trabajo","Tu trabajo es…","s",1,O("sentado|Sobre todo sentado","mixto|Mixto","activo|De pie o con mucho movimiento")],["pasos","Pasos al día (más o menos)","s",1,O("pocos|Menos de 4.000","medios|Entre 4.000 y 8.000","muchos|Más de 8.000")],["deporte","Días de deporte por semana","s",1,O("0|Ninguno","1-2|1 o 2","3-4|3 o 4","5+|5 o más")],["sueno","Horas de sueño","s",1,O("poco|Menos de 6","normal|De 6 a 7","bien|De 7 a 9","mucho|Más de 9")],["estres","Nivel de estrés","s",1,O("bajo|Bajo","medio|Medio","alto|Alto")],["cocina","¿Quién cocina en casa?","s",1,O("yo|Yo","otros|Otra persona","mixto|Compartido")],["fuera","Comidas fuera de casa por semana","s",1,O("0-2|De 0 a 2","3-5|De 3 a 5","6+|6 o más")],["tiempo","Tiempo para cocinar","s",1,O("poco|Poco","medio|El normal","mucho|Bastante")],["restricciones","Preferencias o restricciones (opcional)","x",0],["fallos","¿Qué te ha fallado otras veces? (opcional)","x",0]],
  pro:[["entreno","Tipo de entrenamiento","s",1,O("fuerza|Fuerza","cardio|Cardio","mixto|Mixto","deporte|Deporte específico")],["macro","Macro a priorizar","s",1,O("proteina|Proteína","carbos|Carbohidratos","grasa|Grasa","equilibrado|Equilibrado")]]};
-const Q={abierto:false,iniciado:false,paso:0,v:{},err:"",fin:false,forzado:false,sinDef:false,autoHab:false};
+const Q={abierto:false,iniciado:false,paso:0,v:{},err:"",fin:false,forzado:false,sinDef:false,autoHab:false,menor:false,filtro:false,confirmar:false,confirmado:false};
 function prefillQ(){const c=D.cuest||{},x=c.contexto||{},p=c.pro||{};return{nombre:D.name||"",tono:D.tono||"",edad:+D.prof.a||"",sexo:D.prof.s||"",altura:+D.prof.h||"",peso:lastW()||"",objetivo:D.modo==="deficit"?"perder":D.modo==="superavit"?"ganar":D.modo?"mantener":"",motivo:D.motivo||"",nivel:D.nivel||"",experiencia:c.experiencia||"",...x,...p}}
-function abrirQ(){Q.abierto=true;Q.iniciado=true;Q.paso=0;Q.fin=false;Q.err="";Q.forzado=false;Q.sinDef=false;Q.autoHab=false;Q.v=prefillQ();tab(4)}
+function abrirQ(){Q.abierto=true;Q.iniciado=true;Q.paso=0;Q.fin=false;Q.err="";Q.forzado=false;Q.sinDef=false;Q.autoHab=false;Q.menor=false;Q.filtro=false;Q.confirmar=false;Q.confirmado=false;Q.v=prefillQ();tab(4)}
 function cancelarQ(){Q.abierto=false;inicio()}
 function pasosQ(){const p=["comun","bienestar"];if(!Q.forzado)p.push("modo");p.push("contexto");if(Q.v.nivel==="pro")p.push("pro");return p}
 const reqQ=(f,bl)=>f[3]&&(bl!=="contexto"||Q.v.nivel==="guiado");
@@ -393,14 +393,16 @@ function leerQ(bl){const e=[];
   if(v===""){if(reqQ(f,bl))e.push(l+": obligatorio");Q.v[k]="";continue}
   if(t==="n"){const n=num(v);if(!(n>=o[0]&&n<=o[1])){e.push(l+": debe estar entre "+o[0]+" y "+o[1]);continue}Q.v[k]=n}else Q.v[k]=v}
  return e}
-function nivelQ(k){Q.v.nivel=k;cuestionario()}
+function nivelQ(k){Q.v.nivel=k;Q.confirmado=false;cuestionario()}
 function expQ(v){Q.v.experiencia=v;cuestionario()}
 function modoQ(){
- const rec={nunca:["habitos","guiado"],algo:["guiado","autonomo"],mucha:["autonomo","pro"]}[Q.v.experiencia]||[];
- return '<label style="display:flex;flex-direction:column;gap:4px;margin-top:10px">¿Has contado calorías antes? *<select id="q_experiencia" onchange="expQ(this.value)"><option value="">Elige…</option>'+[["nunca","Nunca"],["algo","Alguna vez"],["mucha","Sí, bastante"]].map(x=>'<option value="'+x[0]+'"'+(Q.v.experiencia===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select></label><p style="margin:14px 0 0"><b>Elige cómo quieres empezar</b></p>'+
+ const rec=Q.filtro?["habitos"]:({nunca:["habitos"],algo:["guiado"],mucha:["autonomo"]}[Q.v.experiencia]||[]);
+ const expl=Q.filtro?"Según lo que nos has contado, para empezar con calma te recomendamos <b>Hábitos 🎒</b>: registras sin ver calorías ni números. Es solo una recomendación: puedes elegir el modo que prefieras.":(rec[0]?"Por tu experiencia, te recomendamos <b>"+NIV[rec[0]].e+" "+NIV[rec[0]].n+"</b>. Es solo una recomendación: elige el que prefieras y podrás cambiarlo cuando quieras.":"");
+ return '<label style="display:flex;flex-direction:column;gap:4px;margin-top:10px">¿Has contado calorías antes? *<select id="q_experiencia" onchange="expQ(this.value)"><option value="">Elige…</option>'+[["nunca","Nunca"],["algo","Alguna vez"],["mucha","Sí, bastante"]].map(x=>'<option value="'+x[0]+'"'+(Q.v.experiencia===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select></label>'+(expl?'<div class="card" style="margin-top:10px">'+expl+'</div>':"")+'<p style="margin:14px 0 0"><b>Elige cómo quieres empezar</b></p>'+
  Object.keys(NIV).map(k=>'<button onclick="nivelQ(\''+k+'\')" style="width:100%;text-align:left;display:block;margin-top:8px;padding:12px;font:inherit;color:var(--tx);background:var(--sf);border:2px solid '+(Q.v.nivel===k?"var(--ac)":"var(--bd)")+';border-radius:14px"><b>'+NIV[k].e+" "+NIV[k].n+'</b>'+(rec.includes(k)?' <span class="hint">· recomendado para ti</span>':"")+'<br><span class="hint">'+NIV[k].d+'</span></button>').join("")}
 function cuestionario(){
  if(Q.fin){$("#c4").innerHTML=finQ();return}
+ if(Q.confirmar){$("#c4").innerHTML=confirmaQ();return}
  const ps=pasosQ(),bl=ps[Math.min(Q.paso,ps.length-1)],last=Q.paso>=ps.length-1;
  let h='<div style="text-align:center;padding:10px 0"><div style="color:var(--ac)">'+LOGO(44)+'</div><h2 style="margin:6px 0 2px">'+TITQ[bl]+'</h2><p class="hint" style="margin:0">Paso '+(Q.paso+1)+' de '+ps.length+'</p></div>';
  if(bl==="bienestar")h+='<p class="hint">Estas preguntas nos ayudan a cuidarte. No hay respuestas buenas ni malas, y siempre puedes elegir «prefiero no decirlo».</p>';
@@ -413,7 +415,8 @@ function atrasQ(){Q.paso=Math.max(0,Q.paso-1);Q.err="";cuestionario()}
 function siguienteQ(){const bl=pasosQ()[Q.paso];let e=[];Q.err="";
  if(bl==="modo"){if(!Q.v.experiencia)e.push("Cuéntanos si has contado calorías antes");if(!Q.v.nivel)e.push("Elige un modo")}else e=leerQ(bl);
  if(e.length){Q.err=e.join(" · ");cuestionario();return}
- if(bl==="bienestar"){const v=Q.v;Q.forzado=v.edad<18||v.tca==="si"||v.culpa==="mucha";Q.sinDef=Q.forzado||v.embarazo==="embarazo"||v.embarazo==="lactancia";
+ if(bl==="modo"&&Q.filtro&&(Q.v.nivel==="autonomo"||Q.v.nivel==="pro")&&!Q.confirmado){Q.confirmar=true;cuestionario();return}
+ if(bl==="bienestar"){const v=Q.v;Q.menor=v.edad<18;Q.filtro=v.tca==="si";Q.forzado=Q.menor;Q.sinDef=Q.menor||v.embarazo==="embarazo"||v.embarazo==="lactancia";
   if(Q.forzado){Q.v.nivel="habitos";Q.autoHab=true}else if(Q.autoHab){Q.v.nivel="";Q.autoHab=false}}
  if(Q.paso>=pasosQ().length-1){guardarQ();return}
  Q.paso++;cuestionario()}
@@ -421,8 +424,8 @@ async function guardarQ(){const v=Q.v;
  const obj=v.objetivo==="perder"?"deficit":v.objetivo==="ganar"?"superavit":"mantenimiento",goal=Q.sinDef&&obj==="deficit"?"mantenimiento":obj;
  const ctx={},pro={};for(const f of QS.contexto)if(v[f[0]])ctx[f[0]]=v[f[0]];for(const f of QS.pro)if(v[f[0]])pro[f[0]]=v[f[0]];
  const cu={experiencia:v.experiencia,contexto:ctx,pro,sin_deficit:!!Q.sinDef,consulta_medica:v.medica==="si"};
- if(GUARDAR_BIENESTAR)cu.bienestar={tca:v.tca,culpa:v.culpa,embarazo:v.embarazo,medica:v.medica};
- const riesgo=v.tca==="si"||v.culpa==="mucha";
+ if(GUARDAR_BIENESTAR)cu.bienestar={tca:v.tca,embarazo:v.embarazo,medica:v.medica};
+ const riesgo=v.tca==="si";
  const row={user_id:uid,name:v.nombre,tono:v.tono,motivo:v.motivo,age:v.edad,sex:v.sexo,height_cm:v.altura,goal_mode:goal,modo:v.nivel,cuestionario:cu,riesgo_bienestar:riesgo};
  if(v.nivel!==D.nivel)row.modo_desde=new Date().toISOString();
  if((v.nivel==="autonomo"||v.nivel==="pro")&&goal==="deficit"&&D.def==null)row.deficit_kcal=300;
@@ -431,12 +434,45 @@ async function guardarQ(){const v=Q.v;
  D.name=v.nombre;D.tono=v.tono;D.motivo=v.motivo;D.prof={h:String(v.altura),a:String(v.edad),s:v.sexo};D.modo=goal;D.nivel=v.nivel;D.cuest=cu;D.riesgo=riesgo;if(row.deficit_kcal)D.def=300;
  try{await addW(v.peso)}catch(e){}
  Q.fin=true;cuestionario()}
+function confirmaQ(){const N=NIV[Q.v.nivel];return '<div style="text-align:center;padding:24px 0 8px"><div style="font-size:48px">'+N.e+'</div><h2 style="margin:8px 0 4px">Antes de empezar</h2></div><div class="card">Has elegido el modo <b>'+N.n+'</b>, que muestra números. Recuerda que <b>puedes ocultarlos cuando quieras</b> con el botón del ojo de arriba, y <b>cambiar de modo en cualquier momento</b> desde tu perfil. Tómate el tiempo que necesites. 💚</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:16px"><button class="btn" onclick="confirmaSi()">Entendido, empezar con este modo</button><button class="btn o" onclick="confirmaHab()">Mejor empiezo con Hábitos 🎒</button><button class="btn o" onclick="confirmaAtras()">Volver a elegir</button></div>'}
+function confirmaSi(){Q.confirmado=true;Q.confirmar=false;Q.paso++;cuestionario()}
+function confirmaHab(){Q.v.nivel="habitos";Q.confirmar=false;Q.confirmado=false;Q.paso++;cuestionario()}
+function confirmaAtras(){Q.confirmar=false;cuestionario()}
 function finQ(){const v=Q.v,N=NIV[v.nivel],notas=[];
  if(v.edad<18)notas.push("Como eres menor de edad, te acompañamos con el modo Hábitos. Antes de cambiar tu alimentación, habla con tu médico o con un adulto de confianza.");
- else if(Q.forzado)notas.push("Gracias por contármelo. Para empezar con calma, te proponemos el modo Hábitos: sin calorías ni números. Si lo necesitas, hablar con un profesional de la salud o de la nutrición puede ayudarte mucho. Tienes acceso a toda la app y puedes cambiar de modo cuando quieras.");
+ else if(Q.filtro)notas.push(v.nivel==="habitos"?"Gracias por contártelo. Empezar con calma es una buena forma de cuidarte: registras sin ver números. Si en algún momento te apetece hablar con un profesional de la salud o de la nutrición, puede ayudarte mucho. Puedes cambiar de modo cuando quieras.":"Gracias por contártelo. Has elegido un modo con números: recuerda que puedes ocultarlos con el botón del ojo o cambiar de modo en cualquier momento. Si lo necesitas, hablar con un profesional puede ayudarte mucho.");
  if(v.embarazo==="embarazo"||v.embarazo==="lactancia")notas.push("En el embarazo y la lactancia no proponemos déficit. Te acompañamos con mantenimiento; consulta cualquier cambio con tu profesional sanitario.");
  if(v.medica==="si")notas.push("Con una condición médica, es buena idea consultar con tu profesional sanitario antes de ajustar tu alimentación.");
  return '<div style="text-align:center;padding:24px 0 8px"><div style="font-size:54px">'+N.e+'</div><h2 style="margin:8px 0 4px">¡Listo'+(D.name?", "+esc(D.name):"")+'!</h2><p class="hint">Tu modo es <b>'+N.n+'</b>. Podrás cambiarlo cuando quieras desde tu perfil.</p></div>'+notas.map(n=>'<div class="card" style="margin-top:10px">'+n+'</div>').join("")+'<button class="btn" style="width:100%;margin-top:16px" onclick="Q.abierto=false;Q.fin=false;inicio()">Ir a mi inicio</button>'}
+// ---------- AJUSTES DE CUIDADO: ocultar números, avisos suaves y check-in ----------
+let TABACT=4,CHK="";
+const oculto=()=>D.nivel==="habitos"||!!(D.cuest&&D.cuest.ocultar);
+const modoNum=()=>D.nivel!=="habitos";
+const kc=n=>oculto()?"···":fmt(n);
+const maskT=t=>oculto()?String(t).replace(/[+−-]?≈?[\d.,]+(?=\s*kcal)/g,"···"):t;
+const AVISO_OBJ="Con este objetivo, tu ingesta quedaría por debajo de tu metabolismo basal. No es lo más recomendable: puedes suavizar el déficit o sumar movimiento. Tú decides y, si quieres, un profesional puede orientarte.";
+const AVISO_BAJA="Estos últimos días tu ingesta ha estado por debajo de tu metabolismo basal. Puede que no hayas anotado todo. Si es real, comer tan poco no se recomienda: cuídate, y si te cuesta, puedes ocultar los números o pasar a Hábitos.";
+function gastoTipico(){let t=0,n=0;for(let k=1;k<=7;k++){const d=day(daysAgo(k));if(d.i>0){t+=d.out;n++}}return n?t/n:0}
+function avisoObjetivo(){const b=bmr();if(!b)return false;
+ if(D.goal)return D.goal<b;
+ if(D.def!=null&&D.modo==="deficit"){const g=gastoTipico();return g>0&&g-D.def<b}
+ return false}
+function ingestaBaja(){const b=bmr();if(!b)return false;for(let k=1;k<=3;k++){const d=day(daysAgo(k));if(!(d.i>0&&d.i<b))return false}return true}
+async function guardarCuest(){await sb.from("profiles").upsert({user_id:uid,cuestionario:D.cuest})}
+function actualizaOjo(){const b=$("#ojo");if(!b)return;const h=!!(D.cuest&&D.cuest.ocultar);b.style.display=(D.nivel&&D.nivel!=="habitos")?"flex":"none";b.innerHTML=ico(h?"eyeoff":"eye","currentColor",24);if(b.setAttribute)b.setAttribute("aria-label",h?"Mostrar números":"Ocultar números")}
+async function alternaNum(){D.cuest=D.cuest||{};D.cuest.ocultar=!D.cuest.ocultar;await guardarCuest();actualizaOjo();if(TABACT===0)draw();else tab(TABACT)}
+async function cambiarNivel(k){D.nivel=k;const r=await sb.from("profiles").upsert({user_id:uid,modo:k,modo_desde:new Date().toISOString()});CHK="";actualizaOjo();inicio()}
+function avisosHtml(){let h="";if(modoNum()&&ingestaBaja())h+='<div class="card" style="margin-top:14px">'+AVISO_BAJA+'</div>';if(modoNum()&&avisoObjetivo())h+='<div class="card" style="margin-top:14px">'+AVISO_OBJ+'</div>';return h}
+function tocaCheckin(){if(!D.nivel||D.nivel==="habitos")return false;const c=D.cuest||{},ref=c.checkin_ultimo||D.modoDesde||D.creado;if(!ref)return false;
+ if(c.checkin_snooze&&today()<c.checkin_snooze)return false;return (Date.now()-new Date(ref))/864e5>=21}
+function checkinHtml(){
+ if(CHK==="bien")return'<div class="card" style="margin-top:14px">¡Genial! Seguimos así. 💚</div>';
+ if(CHK==="mal")return'<div class="card" style="margin-top:14px"><b>Gracias por contármelo.</b><br>Si te ayuda, puedes registrar sin números durante un tiempo. Tú decides:<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" onclick="cambiarNivel(\'habitos\')">Pasar a Hábitos 🎒</button><button class="btn o" onclick="pausarNum()">Pausar los números</button><button class="btn o" onclick="CHK=\'\';inicio()">Seguir como estoy</button></div></div>';
+ if(!tocaCheckin())return"";
+ return'<div class="card" style="margin-top:14px"><b>¿Cómo te sientes con el registro?</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn o" onclick="checkinR(\'bien\')">😊 Bien</button><button class="btn o" onclick="checkinR(\'regular\')">😐 Regular</button><button class="btn o" onclick="checkinR(\'mal\')">😟 Me cuesta</button></div><p class="hint" style="margin:8px 0 0"><a href="#" onclick="ahoraNo();return false" style="color:var(--ac)">Ahora no</a></p></div>'}
+async function checkinR(r){D.cuest=D.cuest||{};D.cuest.checkin_ultimo=today();D.cuest.checkin_resp=r;await guardarCuest();CHK=r==="bien"?"bien":"mal";inicio()}
+async function ahoraNo(){D.cuest=D.cuest||{};const d=new Date();d.setDate(d.getDate()+7);D.cuest.checkin_snooze=iso(d);await guardarCuest();inicio()}
+async function pausarNum(){D.cuest=D.cuest||{};D.cuest.ocultar=true;await guardarCuest();CHK="";actualizaOjo();inicio()}
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
 function inicio(){
@@ -444,7 +480,7 @@ function inicio(){
  if(!D.modo){$("#c4").innerHTML=objetivoPantalla();return}
  $("#c4").innerHTML='<div style="text-align:center;padding:28px 0 8px"><div style="color:var(--ac);margin-bottom:6px">'+LOGO(64)+'</div><h2 style="margin:0 0 10px;font-size:28px">Hola'+(D.name?" "+esc(D.name):"")+'</h2><p style="margin:0;color:var(--mu)">'+FRASES[new Date().getDate()%FRASES.length]+'</p></div>'+
  (D.name?"":'<div style="display:flex;gap:8px;margin:12px 0"><input id="nm0" placeholder="¿Cómo te llamas?" style="flex:1"><button class="btn" onclick="guardarNombre()">Guardar</button></div>')+
- '<p class="hint" style="text-align:center;margin:14px 0 0">Tu objetivo: <b>'+MODOS[D.modo][1]+'</b> · <a href="#" onclick="D.modo=\'\';inicio();return false" style="color:var(--ac)">cambiar</a></p>'+'<button onclick="tab(0)" style="width:100%;margin-top:22px;padding:22px 18px;font:inherit;font-size:16px;text-align:left;color:var(--mu);background:var(--sf);border:2px solid var(--ac);border-radius:20px;display:flex;justify-content:space-between;align-items:center"><span>Cuéntame qué has comido o hecho hoy…</span><span style="color:var(--ac);font-size:22px">→</span></button>'+
+ '<p class="hint" style="text-align:center;margin:14px 0 0">Tu objetivo: <b>'+MODOS[D.modo][1]+'</b> · <a href="#" onclick="D.modo=\'\';inicio();return false" style="color:var(--ac)">cambiar</a></p>'+avisosHtml()+checkinHtml()+'<button onclick="tab(0)" style="width:100%;margin-top:22px;padding:22px 18px;font:inherit;font-size:16px;text-align:left;color:var(--mu);background:var(--sf);border:2px solid var(--ac);border-radius:20px;display:flex;justify-content:space-between;align-items:center"><span>Cuéntame qué has comido o hecho hoy…</span><span style="color:var(--ac);font-size:22px">→</span></button>'+
  '<div style="text-align:center;margin-top:32px"><button onclick="tab(2)" style="background:none;border:0;color:var(--tx);font:inherit"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 4px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Introducir datos</button></div><div style="text-align:center;margin-top:18px"><button onclick="tab(5)" style="background:none;border:0;color:var(--tx);font:inherit">'+ico("shield","var(--ac)",30)+'<br>Cómo hacerlo de forma sana</button></div>'}
 let RDIA=today(),RMSG="";const PEND=new Set(),CARG=new Set();
 const pk=(t,id)=>t+":"+id;
@@ -461,10 +497,10 @@ async function guardarReg(){let fallos=0;
 function hoy(){const d=day(RDIA),esHoy=RDIA===today(),n=PEND.size;
  const fecha=new Date(RDIA+"T12:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
  $("#c1").innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><button class="btn o" onclick="cambiaDia(-1)" aria-label="Día anterior">‹</button><input type="date" id="rdia" value="'+RDIA+'" max="'+today()+'" onchange="setRdia(this.value)" style="flex:1"><button class="btn o" onclick="cambiaDia(1)" aria-label="Día siguiente">›</button>'+(esHoy?'':'<button class="btn o" onclick="setRdia(today())">Hoy</button>')+'</div>'+
- '<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div>'+enlaceInfo()+
- '<p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Perfil para calcular el basal")+'.</p><h3>Registro '+(esHoy?"de hoy":"del "+fecha)+'</h3>'+
+ '<div class="cards"><div class="card"><small>Ingesta</small><b>'+kc(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+kc(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+kc(d.bal)+'</b></div></div>'+enlaceInfo()+(modoNum()&&ingestaBaja()?'<div class="card" style="margin-bottom:10px">'+AVISO_BAJA+'</div>':"")+
+ '<p class="hint">Gasto = basal ('+kc(d.b)+') + actividad ('+kc(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Perfil para calcular el basal")+'.</p><h3>Registro '+(esHoy?"de hoy":"del "+fecha)+'</h3>'+
  (n?'<div class="card" style="border-color:var(--ac);margin-bottom:10px"><b>'+n+' cambio'+(n>1?"s":"")+' sin guardar</b><div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="guardarReg()">Guardar cambios</button><button class="btn o" onclick="deshacerReg()">Deshacer cambios</button></div></div>':"")+(RMSG?'<p class="hint">'+RMSG+'</p>':"")+
- (D.log.filter(e=>e.d===RDIA).map(e=>{const q=PEND.has(pk(e.t,e.id));return'<div class="row" style="'+(q?"opacity:.5":"")+'"><div style="'+(q?"text-decoration:line-through":"")+'">'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':"")+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal '+(q?'<button class="btn o" style="padding:4px 8px" onclick="restaura(\''+e.t+'\','+e.id+')">Restaurar</button>':'<button class="x" onclick="marca(\''+e.t+'\','+e.id+')">×</button>')+'</div></div>'}).join("")||'<p class="hint">No hay registros este día.</p>')}
+ (D.log.filter(e=>e.d===RDIA).map(e=>{const q=PEND.has(pk(e.t,e.id));return'<div class="row" style="'+(q?"opacity:.5":"")+'"><div style="'+(q?"text-decoration:line-through":"")+'">'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':"")+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+kc(e.kcal)+' kcal '+(q?'<button class="btn o" style="padding:4px 8px" onclick="restaura(\''+e.t+'\','+e.id+')">Restaurar</button>':'<button class="x" onclick="marca(\''+e.t+'\','+e.id+')">×</button>')+'</div></div>'}).join("")||'<p class="hint">No hay registros este día.</p>')}
 const PASO_Y=0; // 0 = escalones automáticos; pon 10 para escalones de 10 kg
 let CH=[];
 function tip(i){const x=CH[i];$("#tip").textContent=f2(x.w)+" kg · "+new Date(x.d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"long"});document.querySelectorAll(".pt").forEach((c,j)=>c.setAttribute("r",j===i?6:3.5))}
@@ -485,15 +521,15 @@ function chart(){const a=daysAgo(PER-1),w=D.weights.filter(x=>x.d>=a);CH=w;
 function anillo(P){const tot=P.reduce((t,x)=>t+x[1],0);if(!tot)return'<p class="hint">Sin datos en este periodo.</p>';
  let off=0;const R=40,C=2*Math.PI*R;
  const arcs=P.map(x=>{const l=x[1]/tot*C,a='<circle r="'+R+'" cx="60" cy="60" fill="none" stroke="'+x[2]+'" stroke-width="18" stroke-dasharray="'+l+' '+(C-l)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 60 60)"/>';off+=l;return a}).join("");
- return'<div style="display:flex;align-items:center;gap:12px"><svg viewBox="0 0 120 120" style="width:140px;flex:none">'+arcs+'</svg><div>'+P.map(x=>'<div><span style="color:'+x[2]+'">●</span> '+x[0]+': '+fmt(x[1])+' kcal ('+Math.round(x[1]/tot*100)+'%)</div>').join("")+'</div></div>'}
+ return'<div style="display:flex;align-items:center;gap:12px"><svg viewBox="0 0 120 120" style="width:140px;flex:none">'+arcs+'</svg><div>'+P.map(x=>'<div><span style="color:'+x[2]+'">●</span> '+x[0]+': '+kc(x[1])+' kcal ('+Math.round(x[1]/tot*100)+'%)</div>').join("")+'</div></div>'}
 let PER=7,PSEL="7";
 function setPer(v){PSEL=v;PER=v==="w"?new Date().getDay()+1:+v;datos()}
 function datos(){const p=D.prof,P=periodo(PER);let h7="";
- for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+fmt(d.i)+"</td><td>"+fmt(d.out)+"</td><td>"+(d.bal>0?"+":"")+fmt(d.bal)+"</td></tr>"}
+ for(let i=6;i>=0;i--){const k=daysAgo(i),d=day(k);h7+="<tr><td>"+k.slice(5)+"</td><td>"+kc(d.i)+"</td><td>"+kc(d.out)+"</td><td>"+(d.bal>0?"+":"")+kc(d.bal)+"</td></tr>"}
  const ops=[[1,"Hoy"],["w","Esta semana (dom–hoy)"],[7,"1 semana"],[14,"2 semanas"],[21,"3 semanas"],[28,"4 semanas"],[56,"8 semanas"],[84,"12 semanas"]].map(o=>'<option value="'+o[0]+'"'+(String(o[0])===PSEL?" selected":"")+'>'+o[1]+'</option>').join("");
- const X=(faltan().length?'<div class="card" style="border-color:var(--bad);margin-top:10px">Faltan datos obligatorios: <b>'+faltan().join(", ")+'</b>. Los necesitamos para calcular tu gasto.</div>':"")+'<div class="card" style="margin-top:10px">'+(D.nivel?NIV[D.nivel].e+' Modo actual: <b>'+NIV[D.nivel].n+'</b>':'Aún no has elegido modo')+' · <a href="#" onclick="abrirQ();return false" style="color:var(--ac)">Revisar mi cuestionario</a></div>'+'<h3>Perfil <span class="hint">(* obligatorio)</span></h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Peso de hoy (kg) *<input id="pw"'+req(lastW())+' value="'+(lastW()||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Altura (cm) *<input id="ph"'+req(p.h)+' value="'+esc(p.h)+'" oninput="marcar()" onchange="marcar()"></label><label>Edad *<input id="pa"'+req(p.a)+' value="'+esc(p.a)+'" oninput="marcar()" onchange="marcar()"></label><label>Sexo<select id="ps" oninput="marcar()" onchange="marcar()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>Objetivo *<select id="md"'+req(D.modo)+' oninput="marcar()" onchange="marcar()"><option value="">Elige…</option><option value="deficit"'+(D.modo==="deficit"?" selected":"")+'>Perder grasa (déficit)</option><option value="mantenimiento"'+(D.modo==="mantenimiento"?" selected":"")+'>Mantenerme</option><option value="superavit"'+(D.modo==="superavit"?" selected":"")+'>Ganar masa (superávit)</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" oninput="marcar()" onchange="marcar()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" oninput="marcar()" onchange="marcar()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" oninput="marcar()" onchange="marcar()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" oninput="marcar()" onchange="marcar()"></label></div>'+
+ const X=(faltan().length?'<div class="card" style="border-color:var(--bad);margin-top:10px">Faltan datos obligatorios: <b>'+faltan().join(", ")+'</b>. Los necesitamos para calcular tu gasto.</div>':"")+(modoNum()&&avisoObjetivo()?'<div class="card" style="margin-top:10px">'+AVISO_OBJ+'</div>':"")+'<div class="card" style="margin-top:10px">'+(D.nivel?NIV[D.nivel].e+' Modo actual: <b>'+NIV[D.nivel].n+'</b>':'Aún no has elegido modo')+' · <a href="#" onclick="abrirQ();return false" style="color:var(--ac)">Revisar mi cuestionario</a></div>'+'<h3>Perfil <span class="hint">(* obligatorio)</span></h3><div class="g"><label>Tu nombre<input id="nm" value="'+esc(D.name||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Peso de hoy (kg) *<input id="pw"'+req(lastW())+' value="'+(lastW()||"")+'" oninput="marcar()" onchange="marcar()"></label><label>Altura (cm) *<input id="ph"'+req(p.h)+' value="'+esc(p.h)+'" oninput="marcar()" onchange="marcar()"></label><label>Edad *<input id="pa"'+req(p.a)+' value="'+esc(p.a)+'" oninput="marcar()" onchange="marcar()"></label><label>Sexo<select id="ps" oninput="marcar()" onchange="marcar()"><option value="m"'+(p.s==="m"?" selected":"")+'>Hombre</option><option value="f"'+(p.s==="f"?" selected":"")+'>Mujer</option></select></label><label>Objetivo *<select id="md"'+req(D.modo)+' oninput="marcar()" onchange="marcar()"><option value="">Elige…</option><option value="deficit"'+(D.modo==="deficit"?" selected":"")+'>Perder grasa (déficit)</option><option value="mantenimiento"'+(D.modo==="mantenimiento"?" selected":"")+'>Mantenerme</option><option value="superavit"'+(D.modo==="superavit"?" selected":"")+'>Ganar masa (superávit)</option></select></label><label>kcal por paso<input id="sk" value="'+D.stepK+'" oninput="marcar()" onchange="marcar()"></label><label>Objetivo diario (kcal)<input id="gk" value="'+(D.goal??"")+'" placeholder="mantenimiento" oninput="marcar()" onchange="marcar()"></label><label>'+(D.modo==="superavit"?"Superávit":"Déficit")+' diario objetivo (kcal)<input id="df" value="'+(D.def??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Déficit semanal objetivo (kcal)<input id="dw" value="'+(D.defw??"")+'" oninput="marcar()" onchange="marcar()"></label><label>Metabolismo basal manual (kcal)<input id="bm" value="'+(D.basal??"")+'" placeholder="fórmula" oninput="marcar()" onchange="marcar()"></label><label>Peso objetivo (kg)<input id="wg" value="'+(D.wgoal??"")+'" oninput="marcar()" onchange="marcar()"></label></div>'+
  '<div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" onclick="guardar()">Guardar</button><span id="gmsg" class="hint"></span></div>'+'<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select>'+
- '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+fmt(Math.abs(P.def))+' kcal</b></div>'+enlaceInfo()+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
+ '<div class="card" style="margin-top:12px"><small>'+(P.def>=0?"Déficit":"Superávit")+' acumulado ('+P.nc+' días con comida registrada)</small><b>'+kc(Math.abs(P.def))+' kcal</b></div>'+enlaceInfo()+(P.b?"":'<p class="hint">Completa perfil y peso para incluir el metabolismo basal.</p>')+
  '<h3>Evolución del peso</h3>'+chart()+'<h3>Calorías del periodo</h3>'+anillo([["Ingesta",P.i,"#e0a030"],["Metabolismo basal",P.b,"#4a8fd8"],["Pasos",P.p,"#5cc496"],["Otros gastos (deporte)",P.o,"#c8627a"]])+
  '<h3>Últimos 7 días</h3><table><tr><th>Día</th><th>Ingesta</th><th>Gasto</th><th>Balance</th></tr>'+h7+'</table><h3>Nota para copiar</h3><button class="btn o" onclick="copiar()">Copiar resumen del periodo</button> <span id="notamsg" class="hint"></span><textarea id="nota" rows="6" style="width:100%;margin-top:8px"></textarea><h3>Importar pesos</h3><p class="hint">Una línea por día, por ejemplo: 25/10 65,55</p><textarea id="imp" rows="4" style="width:100%"></textarea><button class="btn o" onclick="importarPesos()">Importar</button> <span id="impres" class="hint"></span>';const a=X.indexOf('<h3>Periodo</h3>'),b=X.indexOf('<h3>Importar pesos</h3>');$("#c2").innerHTML=X.slice(0,a)+X.slice(b);$("#c6").innerHTML=X.slice(a,b)}
 const CAMPOS=[["pw","Peso (kg)",20,400,1],["ph","Altura (cm)",100,250,1],["pa","Edad",10,110,1],["sk","kcal por paso",0.01,0.5,0],["gk","Objetivo fijo de ingesta",500,10000,0],["df","Déficit/superávit diario",0,2000,0],["dw","Déficit/superávit semanal",0,14000,0],["bm","Metabolismo basal manual",500,4000,0],["wg","Peso objetivo",30,300,0]];
