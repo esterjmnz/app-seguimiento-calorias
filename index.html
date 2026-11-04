@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>FitnessJourney</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%20fill='none'%20stroke='%232f7d5b'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M2.8%2018.5%20C1.9%2016.8%202%2013.5%203.4%2013.5%20C4.8%2013.5%204.2%2021.5%205.6%2021.5%20C7%2021.5%206.4%2010.5%207.6%2010.5%20C8.9%2010.5%208.6%2022.5%209.8%2022.5%20C10.8%2022.5%2010.4%2017%2011.5%2016.6%20L19%2016.4%20C20.2%2016.3%2020%2010.5%2021.2%2010.5%20C22.4%2010.5%2022%2022.5%2023.2%2022.5%20C24.4%2022.5%2024.6%2017%2024.6%2014%20L24.6%204%20C26%203%2027.5%205.5%2029.5%204.5%20C28%206%2026.5%207.5%2024.6%207'/%3E%3C/svg%3E">
 <style>
 :root{--bg:#f6f5f1;--sf:#fff;--tx:#1d1d1b;--mu:#6b6b66;--ac:#2f7d5b;--bd:#e2e0d8;--bad:#b3402a;color-scheme:light}
 @media (prefers-color-scheme:dark){:root{--bg:#161715;--sf:#202220;--tx:#eeeee8;--mu:#9a9a92;--ac:#5cc496;--bd:#33362f;--bad:#e8826c;color-scheme:dark}}
-html,body{height:100%;margin:0}
+html,body{height:100%;height:100dvh;margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:640px;margin:0 auto;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 #top{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd)}
 #mbtn{background:none;border:0;color:var(--tx);padding:6px}
@@ -47,7 +47,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
 <header id="top"><div style="display:flex;align-items:center;gap:10px"><button onclick="tab(0)" aria-label="Ir al chat" style="background:none;border:0;color:var(--ac);padding:4px;display:flex"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></button><span style="width:1px;height:24px;background:var(--bd)"></span><b id="ptitle" style="font-size:17px;display:flex;align-items:center;gap:8px">FitnessJourney</b></div><button id="mbtn" onclick="menu()" aria-label="Menú"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></header>
 <div id="menu" style="display:none" onclick="this.style.display='none'"><nav id="navm" onclick="event.stopPropagation()"></nav></div>
-<section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off"><button class="btn" onclick="send()">Enviar</button></div></section>
+<section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off" enterkeyhint="send"><button class="btn" onclick="send()">Enviar</button></div></section>
 <main id="c4"></main><main id="c5" style="display:none"></main><main id="c6" style="display:none"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -123,7 +123,7 @@ async function saveFood(f,name,src){
  else{const{data}=await sb.from("foods").insert({...r,user_id:uid}).select().single();if(data)f.id=data.id}}
 const lastW=()=>D.weights.length?D.weights[D.weights.length-1].w:0;
 function bmr(){if(D.basal)return D.basal;const p=D.prof,w=lastW();if(!w||!p.h||!p.a)return 0;return 10*w+6.25*num(p.h)-5*num(p.a)+(p.s==="m"?5:-161)}
-function day(d){let i=0,a=0;D.log.forEach(e=>{if(e.d===d){if(e.t==="food")i+=e.kcal;else a+=e.kcal}});const b=bmr();return{i,a,b,out:b+a,bal:i-b-a}}
+function day(d){let i=0,a=0;D.log.forEach(e=>{if(e.d===d&&!PEND.has(e.t+":"+e.id)){if(e.t==="food")i+=e.kcal;else a+=e.kcal}});const b=bmr();return{i,a,b,out:b+a,bal:i-b-a}}
 async function add(t,txt,kcal,steps,dia,est){
  const row={description:txt,kcal,day:dia||today()};if(steps)row.steps=steps;if(est)row.estimated=true;
  const{data,error}=await sb.from(t==="food"?"food_log":"activity_log").insert(row).select().single();
@@ -191,7 +191,7 @@ async function estimar(r){
  return{kcal:tot,desc:(r.G?r.G+" g":r.q+" × "+(x.u||"100 g"))+" de "+r.name+" (aprox.)",name:r.name,est:true,save:false}}
 function metaDia(d){if(D.modo!=="mantenimiento"&&D.def!=null){const sg=D.modo==="superavit"?-1:1;return{l:d.out-sg*D.def,t:"tu objetivo de "+(sg>0?"déficit":"superávit")+" de "+fmt(D.def)}}if(D.goal)return{l:D.goal,t:"tu objetivo de "+fmt(D.goal)};return d.b?{l:d.out,t:"mantenimiento"}:null}
 function resumen(dia){const d=day(dia),et=dia===today()?"Hoy":dia.slice(5),m=metaDia(d);
- if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Información para calcular cuántas te quedan.";
+ if(!m)return et+": "+fmt(d.i)+" kcal ingeridas. Completa tu perfil en Perfil para calcular cuántas te quedan.";
  const q=m.l-d.i;
  return et+": "+fmt(d.i)+" kcal ingeridas. "+(q>=0?"Te quedan "+fmt(q):"Te has pasado "+fmt(-q))+" kcal para "+m.t+" (límite del día: "+fmt(m.l)+")."+(d.b&&m.l<d.b?" Ojo: ese límite está por debajo de tu metabolismo basal ("+fmt(d.b)+"); no se recomienda comer tan poco.":"")+EST(dia)}
 async function setCol(col,key,v){D[key]=v;await sb.from("profiles").upsert({user_id:uid,[col]:v})}
@@ -242,7 +242,7 @@ async function consulta(s){
  const d=day(dia),m=metaDia(d),pr=d.i+tot-d.out;
  if(d.out)L.push("Previsión: llevas "+fmt(d.i)+" + esto "+fmt(tot)+" = "+fmt(d.i+tot)+" kcal. Gasto estimado "+fmt(d.out)+" → balance previsto "+(pr>0?"+":"")+fmt(pr)+(D.def!=null?" (objetivo −"+fmt(D.def)+")":"")+".");
  if(m)L.push((m.l-d.i-tot>=0?"Te quedarían "+fmt(m.l-d.i-tot):"Te pasarías en "+fmt(d.i+tot-m.l))+" kcal para "+m.t+".");
- else L.push("Completa tu perfil en Información para saber si encaja en el día.");
+ else L.push("Completa tu perfil en Perfil para saber si encaja en el día.");
  return L}
 function periodo(n){const r={i:0,b:0,p:0,o:0,def:0,nc:0};
  for(let k=0;k<n;k++){const dd=daysAgo(k),E=D.log.filter(e=>e.d===dd);if(!E.length)continue;
@@ -303,9 +303,15 @@ async function handle(text){
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
 function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(m.t)+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+' · '+fmt(x.kcal_100g)+' kcal/100 g')+'</button>').join("")+'<button onclick="pick('+mi+',-1)">Ninguna: dar mis calorías</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
-async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";msgs.push({r:"u",t});
+async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";try{localStorage.removeItem("fj_borrador")}catch(e){}msgs.push({r:"u",t});
  try{const L=await handle(t);msgs.push({r:"b",t:L.join("\n"),opts:OPTS})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
 $("#in").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+function alFinal(){const m=$("#msgs");if(m)m.scrollTop=m.scrollHeight}
+function ajustaVista(){if(typeof visualViewport!=="undefined"){document.documentElement.style.height=visualViewport.height+"px";document.body.style.height=visualViewport.height+"px"}if(typeof window!=="undefined")window.scrollTo(0,0);alFinal()}
+if(typeof visualViewport!=="undefined"){visualViewport.addEventListener("resize",ajustaVista);visualViewport.addEventListener("scroll",ajustaVista)}
+$("#in").addEventListener("focus",()=>{setTimeout(ajustaVista,300);setTimeout(alFinal,600)});
+$("#in").addEventListener("input",()=>{try{localStorage.setItem("fj_borrador",$("#in").value)}catch(e){}});
+try{$("#in").value=localStorage.getItem("fj_borrador")||""}catch(e){}
 async function pick(mi,i){
  const m=msgs[mi],o=m.opts;if(!o)return;m.opts=null;
  if(i<0){msgs.push({r:"b",t:"De acuerdo. Dime sus calorías, por ejemplo: «"+o.pend.name+" 120 kcal por 100 g»."});draw();return}
@@ -325,7 +331,7 @@ async function pick(mi,i){
   msgs.push({r:"b",t:desc+" → "+fmt(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})}
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1)hoy();if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
+function tab(n){$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<7;i++){$("#t"+i).classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===0)setTimeout(()=>$("#in").focus(),50)}
 let MIS=[];
 const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
@@ -353,12 +359,12 @@ const GUIA=[["flame","7.700 kcal ≈ 1 kg de grasa","Es una aproximación útil,
 ["clock","Actividad semanal","Las guías de EE. UU. recomiendan al menos 150 minutos a la semana de actividad aeróbica moderada o 75 de vigorosa."],
 ["apple","Come de todo y mira la tendencia","Ningún alimento está prohibido. Mira la media semanal, no el peso de un día: el agua, la sal y la digestión mueven la báscula."]];
 function guia(){$("#c5").innerHTML='<h3 style="margin-top:6px">Cómo hacerlo de forma sana</h3>'+GUIA.map(g=>'<div class="card" style="display:flex;gap:12px;margin-bottom:10px">'+ico(g[0],"var(--ac)",30)+'<div><b>'+g[1]+'</b><p style="margin:4px 0 0" class="hint">'+g[2]+'</p></div></div>').join("")+'<p class="hint">Información general: no sustituye a un profesional sanitario. Fuentes: Lancet Public Health (2025), Harvard Health Publishing, NHS, CDC, Hall et al. (estudio CALERIE), guías del HHS de EE. UU.</p>'}
-const PAGS=[[4,"Inicio","home"],[0,"Chat","chat"],[1,"Hoy","today"],[2,"Información","user"],[6,"Gráficas","chart"],[3,"Alimentos","apple"],[5,"Guía","shield"]];
-function renderMenu(){$("#navm").innerHTML=PAGS.map(x=>'<button id="t'+x[0]+'" onclick="tab('+x[0]+')">'+ico(x[2],"currentColor",22)+x[1]+'</button>').join("")+'<hr style="border:0;border-top:1px solid var(--bd);margin:6px 4px"><button onclick="logout()">'+ico("logout","currentColor",22)+'Cerrar sesión</button>'}
+const PAGS=[[4,"Inicio","home"],[0,"Chat","chat"],[1,"Registro","today"],[6,"Evolución","chart"],[3,"Alimentos","apple"],[-1],[5,"Guía","shield"],[2,"Perfil","user"]];
+function renderMenu(){$("#navm").innerHTML=PAGS.map(x=>x[0]<0?'<hr style="border:0;border-top:1px solid var(--bd);margin:6px 4px">':'<button id="t'+x[0]+'" onclick="tab('+x[0]+')">'+ico(x[2],"currentColor",22)+x[1]+'</button>').join("")+'<button onclick="logout()">'+ico("logout","currentColor",22)+'Cerrar sesión</button>'}
 function menu(){const m=$("#menu");m.style.display=m.style.display==="none"?"block":"none"}
 function faltan(){const f=[];if(!lastW())f.push("peso");if(!D.prof.h)f.push("altura");if(!D.prof.a)f.push("edad");if(!D.modo)f.push("objetivo");return f}
 const req=v=>(v===""||v==null||v===0)?' class="falta"':'';
-const enlaceInfo=()=>'<p style="margin:6px 0 12px"><a href="#" onclick="tab(2);return false" style="color:var(--ac);display:inline-flex;align-items:center;gap:6px;text-decoration:none">'+ico("user","var(--ac)",18)+(faltan().length?"Completa tu información: "+faltan().join(", "):"Editar información")+"</a></p>";
+const enlaceInfo=()=>'<p style="margin:6px 0 12px"><a href="#" onclick="tab(2);return false" style="color:var(--ac);display:inline-flex;align-items:center;gap:6px;text-decoration:none">'+ico("user","var(--ac)",18)+(faltan().length?"Completa tu perfil: "+faltan().join(", "):"Editar perfil")+"</a></p>";
 const LOGO=(z,c)=>'<svg width="'+z+'" height="'+z+'" viewBox="0 0 32 32" fill="none" stroke="'+(c||"currentColor")+'" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.8 18.5 C1.9 16.8 2 13.5 3.4 13.5 C4.8 13.5 4.2 21.5 5.6 21.5 C7 21.5 6.4 10.5 7.6 10.5 C8.9 10.5 8.6 22.5 9.8 22.5 C10.8 22.5 10.4 17 11.5 16.6 L19 16.4 C20.2 16.3 20 10.5 21.2 10.5 C22.4 10.5 22 22.5 23.2 22.5 C24.4 22.5 24.6 17 24.6 14 L24.6 4 C26 3 27.5 5.5 29.5 4.5 C28 6 26.5 7.5 24.6 7"/></svg>';
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
@@ -368,10 +374,25 @@ function inicio(){
  (D.name?"":'<div style="display:flex;gap:8px;margin:12px 0"><input id="nm0" placeholder="¿Cómo te llamas?" style="flex:1"><button class="btn" onclick="guardarNombre()">Guardar</button></div>')+
  '<p class="hint" style="text-align:center;margin:14px 0 0">Tu objetivo: <b>'+MODOS[D.modo][1]+'</b> · <a href="#" onclick="D.modo=\'\';inicio();return false" style="color:var(--ac)">cambiar</a></p>'+'<button onclick="tab(0)" style="width:100%;margin-top:22px;padding:22px 18px;font:inherit;font-size:16px;text-align:left;color:var(--mu);background:var(--sf);border:2px solid var(--ac);border-radius:20px;display:flex;justify-content:space-between;align-items:center"><span>Cuéntame qué has comido o hecho hoy…</span><span style="color:var(--ac);font-size:22px">→</span></button>'+
  '<div style="text-align:center;margin-top:32px"><button onclick="tab(2)" style="background:none;border:0;color:var(--tx);font:inherit"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 4px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>Introducir datos</button></div><div style="text-align:center;margin-top:18px"><button onclick="tab(5)" style="background:none;border:0;color:var(--tx);font:inherit">'+ico("shield","var(--ac)",30)+'<br>Cómo hacerlo de forma sana</button></div>'}
-function hoy(){const d=day(today());
- $("#c1").innerHTML='<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div>'+enlaceInfo()+'<p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Información para calcular el basal")+'.</p><h3>Registro de hoy</h3>'+
- (D.log.filter(e=>e.d===today()).map(e=>'<div class="row"><div>'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':'')+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal <button class="x" onclick="del(\''+e.t+'\','+e.id+')">×</button></div></div>').join("")||'<p class="hint">Aún no hay registros.</p>')}
-async function del(t,id){await sb.from(t==="food"?"food_log":"activity_log").delete().eq("id",id);D.log=D.log.filter(e=>!(e.t===t&&e.id===id));hoy()}
+let RDIA=today(),RMSG="";const PEND=new Set(),CARG=new Set();
+const pk=(t,id)=>t+":"+id;
+async function cargarDia(v){for(const[tb,t] of [["food_log","food"],["activity_log","act"]]){const{data}=await sb.from(tb).select("*").eq("day",v);(data||[]).forEach(r=>{if(!D.log.some(e=>e.t===t&&e.id===r.id))D.log.push({id:r.id,d:r.day,t,txt:r.description,kcal:+r.kcal,est:!!r.estimated})})}}
+async function setRdia(v){if(!v||v>today())return;RDIA=v;RMSG="";if(v<daysAgo(90)&&!CARG.has(v)){await cargarDia(v);CARG.add(v)}hoy()}
+function cambiaDia(n){const d=new Date(RDIA+"T12:00");d.setDate(d.getDate()+n);const v=iso(d);if(v<=today())setRdia(v)}
+function marca(t,id){PEND.add(pk(t,id));RMSG="";hoy()}
+function restaura(t,id){PEND.delete(pk(t,id));hoy()}
+function deshacerReg(){PEND.clear();RMSG="Cambios deshechos.";hoy()}
+async function guardarReg(){let fallos=0;
+ for(const k of [...PEND]){const[t,id]=k.split(":");const{error}=await sb.from(t==="food"?"food_log":"activity_log").delete().eq("id",+id);
+  if(error)fallos++;else{PEND.delete(k);D.log=D.log.filter(e=>!(e.t===t&&e.id===+id))}}
+ RMSG=fallos?"No se han podido guardar "+fallos+" cambios; inténtalo de nuevo.":"Cambios guardados correctamente ✓";hoy()}
+function hoy(){const d=day(RDIA),esHoy=RDIA===today(),n=PEND.size;
+ const fecha=new Date(RDIA+"T12:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+ $("#c1").innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><button class="btn o" onclick="cambiaDia(-1)" aria-label="Día anterior">‹</button><input type="date" id="rdia" value="'+RDIA+'" max="'+today()+'" onchange="setRdia(this.value)" style="flex:1"><button class="btn o" onclick="cambiaDia(1)" aria-label="Día siguiente">›</button>'+(esHoy?'':'<button class="btn o" onclick="setRdia(today())">Hoy</button>')+'</div>'+
+ '<div class="cards"><div class="card"><small>Ingesta</small><b>'+fmt(d.i)+'</b></div><div class="card"><small>Gasto</small><b>'+fmt(d.out)+'</b></div><div class="card"><small>Balance</small><b>'+(d.bal>0?"+":"")+fmt(d.bal)+'</b></div></div>'+enlaceInfo()+
+ '<p class="hint">Gasto = basal ('+fmt(d.b)+') + actividad ('+fmt(d.a)+')'+(d.b?"":". Completa tu perfil y peso en Perfil para calcular el basal")+'.</p><h3>Registro '+(esHoy?"de hoy":"del "+fecha)+'</h3>'+
+ (n?'<div class="card" style="border-color:var(--ac);margin-bottom:10px"><b>'+n+' cambio'+(n>1?"s":"")+' sin guardar</b><div style="display:flex;gap:8px;margin-top:8px"><button class="btn" onclick="guardarReg()">Guardar cambios</button><button class="btn o" onclick="deshacerReg()">Deshacer cambios</button></div></div>':"")+(RMSG?'<p class="hint">'+RMSG+'</p>':"")+
+ (D.log.filter(e=>e.d===RDIA).map(e=>{const q=PEND.has(pk(e.t,e.id));return'<div class="row" style="'+(q?"opacity:.5":"")+'"><div style="'+(q?"text-decoration:line-through":"")+'">'+esc(e.txt)+(e.est?' <span class="hint">(estimado)</span>':"")+'<br><small>'+(e.t==="food"?"Comida":"Gasto")+'</small></div><div>'+(e.t==="food"?"":"−")+fmt(e.kcal)+' kcal '+(q?'<button class="btn o" style="padding:4px 8px" onclick="restaura(\''+e.t+'\','+e.id+')">Restaurar</button>':'<button class="x" onclick="marca(\''+e.t+'\','+e.id+')">×</button>')+'</div></div>'}).join("")||'<p class="hint">No hay registros este día.</p>')}
 const PASO_Y=0; // 0 = escalones automáticos; pon 10 para escalones de 10 kg
 let CH=[];
 function tip(i){const x=CH[i];$("#tip").textContent=f2(x.w)+" kg · "+new Date(x.d+"T12:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"long"});document.querySelectorAll(".pt").forEach((c,j)=>c.setAttribute("r",j===i?6:3.5))}
