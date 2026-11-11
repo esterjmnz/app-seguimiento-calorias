@@ -523,7 +523,7 @@ function balanceHab(){const o=semHab(),L=[];
  if(o.pD){const m=o.pT/o.pD;L.push(m>=8000?"Tus pasos van muy bien 👟":m>=6000?"Buen ritmo de pasos 👟":"Hay margen para caminar un poco más 👟")}
  return L}
 const balanceTxt=()=>["Balance de la semana:"].concat(balanceHab().map(x=>"• "+x)).join("\n");
-function bloqueMotiv(){const o=semHab();
+function bloqueMotiv(){if(!EVOLUCION_MENSAJES)return"";const o=semHab();
  return'<h3>Tu constancia</h3><div class="card">Esta semana has registrado <b>'+o.dias+' de 7 días</b> 🌱</div><h3>Balance de la semana</h3><div class="card">'+balanceHab().map(x=>'<p style="margin:4px 0">'+x+'</p>').join("")+'</div>'+recoHtml(0,true)}
 function evolHabitos(ops){return'<h3>Periodo</h3><select id="per" onchange="setPer(this.value)">'+ops+'</select><h3>Evolución del peso</h3>'+chart()+bloqueMotiv()}
 function tdee(){const b=bmr();if(!b)return 0;const c=(D.cuest&&D.cuest.contexto)||{};const base={sentado:1.2,mixto:1.3,activo:1.4}[c.trabajo]||1.3,dep={"0":0,"1-2":.05,"3-4":.1,"5+":.15}[c.deporte]||0,pas=c.pasos==="muchos"?.05:0;return b*Math.min(base+dep+pas,1.7)}
@@ -743,6 +743,7 @@ function dictar(){
 // Atajo de la cabecera: en todas las pestañas lleva al Chat; dentro del Chat lleva al Registro
 const atajo=()=>tab(TABACT===0?1:0);
 // Pantalla de Inicio: por defecto solo "Hola", la frase, el objetivo y el botón del chat.
+const EVOLUCION_MENSAJES=false; // true = vuelven a Evolución "Tu constancia", "Balance de la semana" y "Recomendaciones"
 const INICIO_MENSAJES=false;  // true = vuelven las tarjetas (constancia, ideas de la semana, avisos, check-in)
 const INICIO_ATAJOS=false;    // true = vuelven los atajos "Introducir datos" y "Cómo hacerlo de forma sana"
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
