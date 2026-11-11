@@ -86,7 +86,7 @@ async function load(){
  (q[1].data||[]).sort(own).forEach(r=>D.acts[r.name.toLowerCase()]={id:r.id,k:+r.kcal_hour,m:[norm(r.name)].concat(ALIAS[r.name.toLowerCase()]||[])});
  D.log=(q[2].data||[]).map(r=>({id:r.id,d:r.day,t:"food",txt:r.description,kcal:+r.kcal,est:!!r.estimated,g:r.grupo,rc:r.raciones})).concat((q[3].data||[]).map(r=>({id:r.id,d:r.day,t:"act",txt:r.description,kcal:+r.kcal,tp:r.tipo,mn:r.minutos,st:r.steps})));
  D.weights=(q[4].data||[]).map(r=>({d:r.day,w:+r.kg}));D.desc=new Set((q[6].data||[]).map(r=>r.day));D.reglas=q[7].data||[];D.consent={};(q[8].data||[]).forEach(r=>{D.consent[r.tipo]=r});
- const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modoDesde=p.modo_desde||"";D.creado=p.creado_en||"";D.modo=p.goal_mode||"";D.nivel=p.modo||"";D.subidaOf=!!p.subida_ofrecida;D.tono=p.tono||"";D.motivo=p.motivo||"";D.cuest=p.cuestionario||{};D.riesgo=!!p.riesgo_bienestar}
+ const p=q[5].data||{};D.prof={h:p.height_cm??"",a:p.age??"",s:p.sex||"m"};D.stepK=+(p.step_kcal||0.075);D.goal=p.goal_kcal!=null?+p.goal_kcal:null;D.basal=+p.basal_kcal||null;D.def=p.deficit_kcal!=null?+p.deficit_kcal:null;D.defw=p.deficit_week_kcal!=null?+p.deficit_week_kcal:null;D.wgoal=p.weight_goal!=null?+p.weight_goal:null;D.name=p.name||"";D.modoDesde=p.modo_desde||"";D.creado=p.creado_en||"";D.modo=p.goal_mode||"";D.nivel=PERFIL_UNICO?"autonomo":(p.modo||"");D.subidaOf=!!p.subida_ofrecida;D.tono=p.tono||"";D.motivo=p.motivo||"";D.cuest=p.cuestionario||{};D.riesgo=!!p.riesgo_bienestar}
 
 const unitK=f=>f.k!=null?f.k*(f.p||100)/100:(f.kp||0);
 const palabras=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w&&!STOP.has(w));
@@ -374,6 +374,10 @@ function faltan(){const f=[];if(!lastW())f.push("peso");if(!D.prof.h)f.push("alt
 const req=v=>(v===""||v==null||v===0)?' class="falta"':'';
 const enlaceInfo=()=>'<p style="margin:6px 0 12px"><a href="#" onclick="tab(2);return false" style="color:var(--ac);display:inline-flex;align-items:center;gap:6px;text-decoration:none">'+ico("user","var(--ac)",18)+(faltan().length?"Completa tu perfil: "+faltan().join(", "):"Editar perfil")+"</a></p>";
 const LOGO=(z,c)=>'<svg width="'+z+'" height="'+z+'" viewBox="0 0 32 32" fill="none" stroke="'+(c||"currentColor")+'" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.8 18.5 C1.9 16.8 2 13.5 3.4 13.5 C4.8 13.5 4.2 21.5 5.6 21.5 C7 21.5 6.4 10.5 7.6 10.5 C8.9 10.5 8.6 22.5 9.8 22.5 C10.8 22.5 10.4 17 11.5 16.6 L19 16.4 C20.2 16.3 20 10.5 21.2 10.5 C22.4 10.5 22 22.5 23.2 22.5 C24.4 22.5 24.6 17 24.6 14 L24.6 4 C26 3 27.5 5.5 29.5 4.5 C28 6 26.5 7.5 24.6 7"/></svg>';
+// ---------- INTERRUPTOR DE PERFILES ----------
+// true  = un solo perfil (el funcionamiento completo, con todas las pestañas). Sin cuestionario de modos, sin subir ni bajar de nivel.
+// false = vuelven los 4 modos (Hábitos, Guiado, Autónomo, Pro) con su cuestionario y "Tu camino".
+const PERFIL_UNICO=true;
 // ---------- CUESTIONARIO INICIAL Y MODOS ----------
 const NIV={habitos:{e:"🎒",n:"Hábitos",d:"Registra comidas con raciones aproximadas, ejercicio, pasos y peso. Sin calorías ni números: solo constancia y buenas rutinas."},guiado:{e:"🧭",n:"Guiado",d:"Ves tus calorías y la app te propone un objetivo suave y sostenible según tu día a día."},autonomo:{e:"🥾",n:"Autónomo",d:"Tú fijas tu objetivo. Ves basal, gasto, déficit acumulado y gráficas."},pro:{e:"🏔️",n:"Pro",d:"Todo lo de Autónomo, más macros (proteína, hidratos y grasa) y recomendaciones concretas."}};
 const O=(...a)=>a.map(x=>x.split("|"));
@@ -484,7 +488,7 @@ function tocaCheckin(){if(!D.nivel||D.nivel==="habitos")return false;const c=D.c
  if(c.checkin_snooze&&today()<c.checkin_snooze)return false;return (Date.now()-new Date(ref))/864e5>=21}
 function checkinHtml(){
  if(CHK==="bien")return'<div class="card" style="margin-top:14px">¡Genial! Seguimos así. 💚</div>';
- if(CHK==="mal")return'<div class="card" style="margin-top:14px"><b>Gracias por contármelo.</b><br>Si te ayuda, puedes registrar sin números durante un tiempo. Tú decides:<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" onclick="cambiarNivel(\'habitos\')">Pasar a Hábitos 🎒</button><button class="btn o" onclick="pausarNum()">Pausar los números</button><button class="btn o" onclick="CHK=\'\';inicio()">Seguir como estoy</button></div></div>';
+ if(CHK==="mal")return'<div class="card" style="margin-top:14px"><b>Gracias por contármelo.</b><br>Si te ayuda, puedes registrar sin números durante un tiempo. Tú decides:<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+(PERFIL_UNICO?"":'<button class="btn" onclick="cambiarNivel(\'habitos\')">Pasar a Hábitos 🎒</button>')+'<button class="btn o" onclick="pausarNum()">Pausar los números</button><button class="btn o" onclick="CHK=\'\';inicio()">Seguir como estoy</button></div></div>';
  if(!tocaCheckin())return"";
  return'<div class="card" style="margin-top:14px"><b>¿Cómo te sientes con el registro?</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn o" onclick="checkinR(\'bien\')">😊 Bien</button><button class="btn o" onclick="checkinR(\'regular\')">😐 Regular</button><button class="btn o" onclick="checkinR(\'mal\')">😟 Me cuesta</button></div><p class="hint" style="margin:8px 0 0"><a href="#" onclick="ahoraNo();return false" style="color:var(--ac)">Ahora no</a></p></div>'}
 async function checkinR(r){D.cuest=D.cuest||{};D.cuest.checkin_ultimo=today();D.cuest.checkin_resp=r;await guardarCuest();CHK=r==="bien"?"bien":"mal";inicio()}
@@ -544,7 +548,11 @@ function constanteMes(){for(let w=0;w<4;w++){let c=0;for(let k=w*7;k<w*7+7;k++)i
 const fCorta=d=>new Date(d+"T12:00").toLocaleDateString("es-ES",{day:"numeric",month:"short"});
 function pesoCamino(){const w=D.weights;if(!w.length)return"Registra tu peso para ver cómo evoluciona.";if(w.length<2)return"Peso actual: <b>"+f2(w[0].w)+" kg</b>.";
  const a=w[0],b=w[w.length-1],d=b.w-a.w;return"Peso: de <b>"+f2(a.w)+" kg</b> ("+fCorta(a.d)+") a <b>"+f2(b.w)+" kg</b>"+(Math.abs(d)>=.05?" ("+(d>0?"+":"−")+f2(Math.abs(d))+" kg)":" (sin cambios)")+"."}
-function caminoHtml(){
+function progresoHtml(){const menor=+D.prof.a<18;
+ return'<h3 style="margin-top:14px">Tu progreso</h3><div class="card"><p style="margin:4px 0">🌱 Semanas con registro: <b>'+semanasReg()+'</b></p><p style="margin:4px 0">📅 Constancia: <b>'+dias28()+' de los últimos 28 días</b></p><p style="margin:4px 0">⚖️ '+pesoCamino()+'</p>'+
+ (menor?'<p class="hint" style="margin:10px 0 0">Si tienes menos de 18 años, habla con tu médico antes de buscar un déficit. 💚</p>':'')+
+ (D.cuest&&D.cuest.bienestar?'<p class="hint" style="margin:12px 0 0"><a href="#" onclick="borrarBienestar();return false" style="color:var(--ac)">Borrar mis respuestas de bienestar</a></p>':'')+'</div>'}
+function caminoHtml(){if(PERFIL_UNICO)return progresoHtml();
  const n=D.nivel,N=NIV[n],i=ORD.indexOf(n);
  if(!N)return'<div class="card" style="margin-top:10px">Aún no has elegido modo · <a href="#" onclick="abrirQ();return false" style="color:var(--ac)">Hacer el cuestionario</a></div>';
  const m=CAM.msg;CAM.msg="";const sem=semanasDesde(),menor=+D.prof.a<18;
@@ -577,7 +585,7 @@ async function guardarCambio(){const v=Q.v,k=Q.cambio.destino,now=new Date().toI
  D.nivel=k;D.modoDesde=now;D.cuest=cu;if(row.riesgo_bienestar!==undefined)D.riesgo=row.riesgo_bienestar;
  CAM.msg="¡Listo! Ya estás en "+NIV[k].e+" "+NIV[k].n+". Puedes volver atrás cuando quieras 💚";Q.cambio=null;Q.abierto=false;actualizaOjo();tab(2)}
 function proximo(){const i=ORD.indexOf(D.nivel);return i>=0&&i<2?ORD[i+1]:null}
-function ofertaHtml(){const k=proximo();if(!k||+D.prof.a<18)return"";
+function ofertaHtml(){if(PERFIL_UNICO)return"";const k=proximo();if(!k||+D.prof.a<18)return"";
  if(!(!D.subidaOf&&semanasDesde()>=4&&constanteMes())&&!OFR)return"";
  if(!OFR){OFR=true;D.subidaOf=true;sb.from("profiles").upsert({user_id:uid,subida_ofrecida:true}).then(()=>{},()=>{})}
  return'<div class="card" style="margin-top:14px"><b>Llevas varias semanas con constancia 🌱</b><br>Si algún día te apetece, puedes pasar al modo '+NIV[k].e+' '+NIV[k].n+'. Sin prisa: tú decides cuándo.<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" onclick="ofertaVer()">Ver cómo</button><button class="btn o" onclick="OFR=false;inicio()">Ahora no, gracias</button></div></div>'}
@@ -650,8 +658,8 @@ function valorMetrica(r){const W=ventanaDias(r.ventana_dias||7),regs=W.filter(ha
  return null}
 function recomendaciones(){const niv=D.nivel||"autonomo",out=[];
  for(const r of (D.reglas||[])){
-  if(r.activa===false||!(r.modos||[]).includes(niv))continue;
-  if((niv==="habitos"||niv==="guiado")&&(r.ventana_dias||7)<3)continue;   // en estos modos, nunca por un solo día
+  if(r.activa===false||(!PERFIL_UNICO&&!(r.modos||[]).includes(niv)))continue;
+  if((PERFIL_UNICO||niv==="habitos"||niv==="guiado")&&(r.ventana_dias||7)<3)continue;   // en estos modos, nunca por un solo día
   const f=OPS[r.operador];if(!f)continue;const v=valorMetrica(r);
   if(v!=null&&f(v,+r.umbral))out.push({pr:r.prioridad||5,msg:String(r.mensaje).replace("{valor}",Math.round(v*10)/10).replace("{umbral}",r.umbral)})}
  return out.sort((a,b)=>a.pr-b.pr)}
@@ -771,6 +779,7 @@ async function guardar(){
   if(v===""){if(rq){bad=true;err.push(lb+": obligatorio")}}
   else if(!(n>=mn&&n<=mx)){bad=true;err.push(lb+": debe ser un número entre "+mn+" y "+mx)}
   $("#"+id).className=bad?"falta":""}
+ if($("#df")&&$("#pa")&&num($("#pa").value)<18&&$("#df").value.trim()!==""&&num($("#df").value)>0){err.push("Déficit diario: por debajo de los 18 años no proponemos déficit; habla con tu médico");$("#df").className="falta"}
  if(D.nivel==="guiado"&&$("#df")&&$("#df").value.trim()!==""){const g=propGuiado(),n=num($("#df").value);if(g&&!g.sin&&!(n>=g.lo&&n<=g.hi)){err.push("Déficit diario: en modo Guiado debe estar entre "+g.lo+" y "+g.hi);$("#df").className="falta"}}
  if(!$("#md").value){err.push("Objetivo: obligatorio");$("#md").className="falta"}else $("#md").className="";
  if(err.length){m.textContent="No se ha guardado. "+err.join(" · ");m.style.color="var(--bad)";return}
