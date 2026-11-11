@@ -49,7 +49,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:4px 3px;text-align:left;
 <div id="app" style="display:none;flex-direction:column;flex:1;min-height:0">
 <header id="top"><div style="display:flex;align-items:center;gap:10px"><button onclick="tab(0)" aria-label="Ir al chat" style="background:none;border:0;color:var(--ac);padding:4px;display:flex"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></button><span style="width:1px;height:24px;background:var(--bd)"></span><b id="ptitle" style="font-size:17px;display:flex;align-items:center;gap:8px">FitnessJourney</b></div><div style="display:flex;align-items:center"><button id="ojo" onclick="alternaNum()" aria-label="Ocultar números" style="background:none;border:0;color:var(--tx);padding:6px;display:none"></button><button id="mbtn" onclick="menu()" aria-label="Menú"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div></header>
 <div id="menu" style="display:none" onclick="this.style.display='none'"><nav id="navm" onclick="event.stopPropagation()"></nav></div>
-<section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off" enterkeyhint="send"><button class="btn" onclick="send()">Enviar</button></div></section>
+<section id="c0" style="display:none"><div id="msgs"></div><div id="bar"><input id="in" placeholder="Ej.: 200 g de arroz y un yogur" autocomplete="off" enterkeyhint="send"><button id="mic" class="btn o" onclick="dictar()" aria-label="Dictar" style="display:none;align-items:center;padding:9px 12px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg></button><button class="btn" onclick="send()">Enviar</button></div></section>
 <main id="c4"></main><main id="c5" style="display:none"></main><main id="c6" style="display:none"></main><main id="c7" style="display:none"></main><main id="c1" style="display:none"></main><main id="c2" style="display:none"></main><main id="c3" style="display:none"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -74,7 +74,7 @@ async function login(up){
  if(!data.session){$("#aerr").textContent="Revisa tu email para confirmar la cuenta.";return}
  start(data.session.user)}
 async function start(u){uid=u.id;await load();if(!consentOk()){pideConsent();return}mostrarApp()}
-function mostrarApp(){$("#cons").style.display="none";$("#auth").style.display="none";$("#app").style.display="flex";draw();renderMenu();tab(4)}
+function mostrarApp(){$("#cons").style.display="none";$("#auth").style.display="none";$("#app").style.display="flex";iniciaDictado();draw();renderMenu();tab(4)}
 sb.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
 async function logout(){await sb.auth.signOut();location.reload()}
 
@@ -312,7 +312,7 @@ async function handle(text){
 
 const msgs=[{r:"b",t:"Hola. Cuéntame lo que comes o haces: «200 g de arroz», «un plato de macarrones», «pizza 700 kcal», «8000 pasos», «1 hora de fuerza» o «peso 68,5». Si un alimento no está, dime sus calorías y lo recordaré."}];
 function draw(){const e=$("#msgs");e.innerHTML=msgs.map((m,mi)=>'<div class="m '+m.r+'">'+esc(maskT(m.t))+(m.opts?'<div class="opts">'+m.opts.items.map((x,i)=>'<button onclick="pick('+mi+','+i+')">'+(x.aprox?esc(x.name):esc(x.name+(x.brand?" · "+x.brand:""))+(modoNum()?' · '+kc(x.kcal_100g)+' kcal/100 g':''))+'</button>').join("")+'<button onclick="pick('+mi+',-1)">'+(modoNum()?"Ninguna: dar mis calorías":"Ninguna de estas")+'</button></div>':"")+"</div>").join("");e.scrollTop=e.scrollHeight}
-async function send(){const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";try{localStorage.removeItem("fj_borrador")}catch(e){}msgs.push({r:"u",t});
+async function send(){if(ESCUCHANDO&&REC)REC.stop();const i=$("#in"),t=i.value.trim();if(!t)return;i.value="";try{localStorage.removeItem("fj_borrador")}catch(e){}msgs.push({r:"u",t});
  try{const L=await handle(t);msgs.push({r:"b",t:L.join("\n"),opts:OPTS})}catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}draw()}
 $("#in").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
 function alFinal(){const m=$("#msgs");if(m)m.scrollTop=m.scrollHeight}
@@ -340,7 +340,7 @@ async function pick(mi,i){
   msgs.push({r:"b",t:desc+" → "+kc(total)+" kcal (alimento guardado)"+(r.G?"":". He supuesto 100 g; si fue otra cantidad, bórralo en Hoy y dime los gramos.")+"\n"+resumen(r.dia||today())})}
  }catch(e){msgs.push({r:"b",t:"No he podido guardarlo: "+(e.message||e)})}
  draw()}
-function tab(n){TABACT=n;actualizaOjo();$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<8;i++){const bt=$("#t"+i);if(bt)bt.classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===7)calendario();if(n===0)setTimeout(()=>$("#in").focus(),50)}
+function tab(n){if(ESCUCHANDO&&n!==0&&REC)REC.stop();TABACT=n;actualizaOjo();$("#menu").style.display="none";const pg=PAGS.find(x=>x[0]===n);$("#ptitle").innerHTML=n===4?"FitnessJourney":ico(pg[2],"var(--ac)",22)+" "+pg[1];for(let i=0;i<8;i++){const bt=$("#t"+i);if(bt)bt.classList.toggle("on",i===n);$("#c"+i).style.display=i===n?(i?"block":"flex"):"none"}if(n===1){if(!PEND.size)RDIA=today();hoy()}if(n===2||n===6)datos();if(n===3)misAlimentos();if(n===4)inicio();if(n===5)guia();if(n===7)calendario();if(n===0)setTimeout(()=>$("#in").focus(),50)}
 let MIS=[];
 const gris=v=>v==null?' class="vacio"':"";
 function misAlimentos(){
@@ -677,7 +677,7 @@ function politicaHtml(){const R=RESP;return'<h2 style="margin-top:0">Política d
  secP("3. Para qué los usamos","Para ofrecerte el seguimiento, adaptar la app a tu modo y darte recomendaciones sencillas calculadas dentro de la app. No vendemos tus datos, no hay publicidad, no hacemos perfiles comerciales ni decisiones automáticas con efectos legales.")+
  secP("4. Base legal","Tu <b>consentimiento explícito</b> para tratar tus datos de salud (artículos 6.1.a y 9.2.a del RGPD). Guardar tus respuestas de bienestar es otro consentimiento aparte y opcional. Puedes retirar tu consentimiento cuando quieras desde Perfil, sin que afecte a lo anterior. Como la app necesita tus datos de salud para funcionar, retirar el consentimiento principal supone borrar tu cuenta.")+
  secP("5. Cuánto tiempo los guardamos","Mientras tengas cuenta. Al borrarla se eliminan tus datos. Los proveedores pueden conservar copias de seguridad durante un tiempo limitado.")+
- secP("6. Quién puede ver tus datos","Tú. La persona responsable solo accede técnicamente para mantener el servicio. Usamos proveedores con contrato de encargado del tratamiento: <b>Supabase</b> (base de datos y acceso; servidores en "+R.reg+") y <b>Vercel</b> (alojamiento de la página, con datos técnicos como la IP, que puede implicar transferencias fuera de la UE con las garantías del RGPD). La app <b>no envía tus datos a ningún servicio de inteligencia artificial</b>.")+
+ secP("6. Quién puede ver tus datos","Tú. La persona responsable solo accede técnicamente para mantener el servicio. Usamos proveedores con contrato de encargado del tratamiento: <b>Supabase</b> (base de datos y acceso; servidores en "+R.reg+") y <b>Vercel</b> (alojamiento de la página, con datos técnicos como la IP, que puede implicar transferencias fuera de la UE con las garantías del RGPD). La app <b>no envía tus datos a ningún servicio de inteligencia artificial</b>. Si usas el <b>dictado por voz</b> (opcional), el reconocimiento lo hace el servicio de voz de tu navegador (por ejemplo, el de Google en Chrome): FitnessJourney no recibe ni guarda tu audio, solo el texto que tú decides enviar.")+
  secP("7. Tus derechos","Acceso, rectificación, supresión, oposición, limitación, portabilidad y retirada del consentimiento. Desde Perfil → «Tus datos y privacidad» puedes descargar tus datos y borrar tu cuenta. También puedes escribir a "+R.mail+". Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).")+
  secP("8. Menores","La app es para personas de <b>"+EDAD_MIN+" años o más</b>. Si tienes menos de 18, usarás el modo Hábitos, sin calorías ni números.")+
  secP("9. Seguridad","Las conexiones son cifradas (HTTPS). Cada persona solo accede a sus propios datos gracias a las reglas de seguridad de la base de datos. El acceso administrativo está restringido y protegido.")+
@@ -695,15 +695,17 @@ function pideConsent(){$("#auth").style.display="none";$("#app").style.display="
  $("#cons").innerHTML='<div style="max-width:560px;margin:0 auto"><div style="text-align:center;color:var(--ac);padding-top:8px">'+LOGO(48)+'</div><h2 style="text-align:center;margin:6px 0">Antes de empezar</h2><p class="hint" style="text-align:center">Tu privacidad importa. Esto es lo esencial:</p>'+
  '<div class="card"><p style="margin:0 0 6px">• Guardamos tu <b>peso, alimentación, ejercicio y hábitos</b>: son datos de salud.</p><p style="margin:0 0 6px">• Solo los usas tú y los usamos para ofrecerte la app. <b>No los vendemos ni hay publicidad.</b></p><p style="margin:0">• Puedes <b>descargarlos o borrarlos</b> cuando quieras desde Perfil.</p></div>'+
  '<p style="margin:12px 0 0"><a href="#" onclick="verPolitica();return false" style="color:var(--ac)">Leer la política de privacidad completa</a></p>'+
- box("c1","He leído la política de privacidad.")+box("c2","Tengo "+EDAD_MIN+" años o más.")+box("c3","Doy mi <b>consentimiento explícito</b> para que FitnessJourney trate mis datos de salud (peso, alimentación, ejercicio y hábitos) con el fin de ofrecerme el servicio. Puedo retirarlo en cualquier momento.")+
+ box("c1","He leído la política de privacidad.")+box("c2","Tengo "+EDAD_MIN+" años o más.")+box("c3","Doy mi <b>consentimiento explícito</b> para que FitnessJourney trate mis datos de salud (peso, alimentación, ejercicio y hábitos) con el fin de ofrecerme el servicio. Puedo retirarlo en cualquier momento.")+box("c4","<b>(Opcional)</b> Quiero poder usar el <b>dictado por voz</b>. Entiendo que el reconocimiento de voz lo hace el servicio de voz de mi navegador (en Chrome, el de Google) y que FitnessJourney no recibe ni guarda el audio.")+
  '<p id="cerr" style="color:var(--bad);margin:10px 0 0"></p><div style="display:flex;flex-direction:column;gap:8px;margin-top:14px"><button class="btn" id="cok" onclick="aceptaConsent()" disabled style="opacity:.5">Aceptar y continuar</button><button class="btn o" onclick="rechazaConsent()">No acepto</button></div></div>';
  $("#cons").style.display="block"}
 function chkConsent(){const ok=["c1","c2","c3"].every(i=>$("#"+i)&&$("#"+i).checked),b=$("#cok");b.disabled=!ok;b.style.opacity=ok?1:.5}
 async function aceptaConsent(){let err=null;for(const t of["privacidad","edad","salud"]){err=await registraConsent(t,true);if(err)break}
- if(err){$("#cerr").textContent="No se ha podido registrar tu consentimiento: "+err.message;return}mostrarApp()}
+ if(err){$("#cerr").textContent="No se ha podido registrar tu consentimiento: "+err.message;return}
+ if($("#c4")&&$("#c4").checked){try{localStorage.setItem("fj_voz_ok","1")}catch(e){}await registraConsent("dictado",true)}
+ mostrarApp()}
 async function rechazaConsent(){await sb.auth.signOut();location.reload()}
 function privHtml(){const c=(D.consent||{}).salud;
- return'<h3>Tus datos y privacidad</h3><div class="card">'+(c?'<p style="margin:0 0 8px">Consentimiento aceptado el '+new Date(c.fecha).toLocaleDateString("es-ES")+' (versión '+esc(c.version)+').</p>':'')+'<div style="display:flex;flex-direction:column;gap:8px"><button class="btn o" onclick="verPolitica()">Leer la política de privacidad</button><button class="btn o" onclick="descargarDatos()">Descargar mis datos</button><button class="btn o" style="color:var(--bad);border-color:var(--bad)" onclick="borrarCuenta()">Retirar mi consentimiento y borrar mi cuenta</button></div><p class="hint" id="privmsg" style="margin:8px 0 0"></p></div>'}
+ return'<h3>Tus datos y privacidad</h3><div class="card">'+(c?'<p style="margin:0 0 8px">Consentimiento aceptado el '+new Date(c.fecha).toLocaleDateString("es-ES")+' (versión '+esc(c.version)+').</p>':'')+'<div style="display:flex;flex-direction:column;gap:8px"><button class="btn o" onclick="verPolitica()">Leer la política de privacidad</button><button class="btn o" onclick="descargarDatos()">Descargar mis datos</button>'+(vozOk()?'<button class="btn o" onclick="quitaDictado()">Desactivar el dictado por voz</button>':"")+'<button class="btn o" style="color:var(--bad);border-color:var(--bad)" onclick="borrarCuenta()">Retirar mi consentimiento y borrar mi cuenta</button></div><p class="hint" id="privmsg" style="margin:8px 0 0"></p></div>'}
 async function descargarDatos(){const T=["profiles","food_log","activity_log","weights","descansos","foods","activities","consentimientos"],out={exportado:new Date().toISOString(),usuario:uid};
  for(const t of T){let q=sb.from(t).select("*");if(t==="foods"||t==="activities")q=q.eq("user_id",uid);const{data}=await q;out[t]=data||[]}
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));a.download="fitnessjourney-mis-datos-"+today()+".json";document.body.appendChild(a);a.click();a.remove();
@@ -712,6 +714,29 @@ async function borrarCuenta(){const t=typeof prompt!=="undefined"?prompt("Se bor
  if(String(t||"").trim().toUpperCase()!=="BORRAR")return;
  const{error}=await sb.rpc("borrar_mi_cuenta");if(error){const m=$("#privmsg");if(m)m.textContent="No se ha podido borrar: "+error.message;return}
  await sb.auth.signOut();location.reload()}
+// ---------- DICTADO POR VOZ (el audio NO se envía a la app: solo se convierte en texto en la caja del chat) ----------
+const DICTADO=true;   // false = quita el botón del micrófono
+const SR=DICTADO&&typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition);
+let REC=null,ESCUCHANDO=false,BASE="",PH0="";
+function iniciaDictado(){const b=$("#mic");if(b)b.style.display=SR?"flex":"none";
+ if(typeof msgs!=="undefined"&&msgs[0]&&!msgs[0].dic){msgs[0].t+=SR?"\n\n🎤 También puedes dictar: pulsa el micrófono, habla y revisa el texto antes de enviarlo.":"\n\n🎤 Consejo: puedes dictar con el micrófono de tu teclado.";msgs[0].dic=1}}
+function micUI(on){const b=$("#mic"),i=$("#in");if(b)b.className=on?"btn":"btn o";if(i){if(on){PH0=i.placeholder;i.placeholder="Escuchando…"}else if(PH0)i.placeholder=PH0}}
+function avisoDictado(t){msgs.push({r:"b",t});draw()}
+function vozOk(){let l=false;try{l=localStorage.getItem("fj_voz_ok")==="1"}catch(e){}const c=(D.consent||{}).dictado;if(c&&c.aceptado===false)return false;return l||!!(c&&c.aceptado)}
+async function quitaDictado(){try{localStorage.removeItem("fj_voz_ok")}catch(e){}await registraConsent("dictado",false);if(ESCUCHANDO&&REC)REC.stop();const m=$("#privmsg");if(m)m.textContent="Dictado por voz desactivado. Si quieres volver a usarlo, se te preguntará de nuevo.";datos()}
+function dictar(){
+ if(!SR)return;
+ if(ESCUCHANDO){if(REC)REC.stop();return}
+ const ok=vozOk();
+ if(!ok){if(typeof confirm!=="undefined"&&!confirm("El dictado usa el servicio de voz de tu navegador (en Chrome, el de Google) para convertir tu voz en texto. FitnessJourney no recibe ni guarda el audio. ¿Quieres usarlo?"))return;try{localStorage.setItem("fj_voz_ok","1")}catch(e){}registraConsent("dictado",true).then(()=>{},()=>{})}
+ const inp=$("#in");BASE=inp.value.trim()?inp.value.trim()+" ":"";
+ REC=new SR();REC.lang="es-ES";REC.interimResults=true;REC.continuous=false;REC.maxAlternatives=1;
+ REC.onstart=()=>{ESCUCHANDO=true;micUI(true)};
+ REC.onresult=e=>{let t="";for(let k=0;k<e.results.length;k++)t+=e.results[k][0].transcript;inp.value=BASE+t.trim();try{inp.dispatchEvent(new Event("input"))}catch(x){}};
+ REC.onerror=e=>{ESCUCHANDO=false;micUI(false);const c=e.error;
+  avisoDictado(c==="not-allowed"||c==="service-not-allowed"?"No tengo permiso para usar el micrófono. Actívalo en los ajustes del navegador (el icono del candado junto a la dirección) y vuelve a intentarlo.":c==="no-speech"?"No te he oído. Pulsa el micrófono y vuelve a hablar.":c==="audio-capture"?"No encuentro el micrófono.":c==="network"?"El dictado necesita conexión a internet.":c==="aborted"?"":"No se ha podido dictar ("+c+").")};
+ REC.onend=()=>{ESCUCHANDO=false;micUI(false);const i=$("#in");if(i&&i.focus)i.focus()};
+ try{REC.start()}catch(x){ESCUCHANDO=false;micUI(false)}}
 const FRASES=["Disfruta el proceso: cada día cuenta y lo estás haciendo muy bien.","Vas por buen camino. Lo importante es disfrutar el proceso.","Estamos haciendo las cosas muy bien: constancia, no perfección.","Un día a la vez. Disfruta el camino, estás avanzando.","Cada registro suma. Sigue así, lo estás haciendo muy bien."];
 async function guardarNombre(){const v=$("#nm0").value.trim();if(!v)return;await setCol("name","name",v);inicio()}
 function inicio(){
